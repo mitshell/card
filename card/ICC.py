@@ -1005,7 +1005,8 @@ class ISO7816(object):
         if len(Data) == 0: 
             P1, P2 = 0x00, 0x0C
         
-        # select file and check SW; if error, returns None, else get response
+        # select file and check SW; if error, returns None, 
+        # else get response
         self.coms.push(self.SELECT_FILE(P1=P1, P2=P2, Data=Data, \
             with_length=with_length))
         
@@ -1086,9 +1087,11 @@ class ISO7816(object):
         
         # place on the DF path to bf
         # select it according to the card application selection type
+        under_df = None
         if len(path) > 0:
             try:
                 path_init = self.select(path, sel_type)
+                under_df = path[-2:]
             except:
                 print '[ERR] selecting path failed:\n%s' % self.coms()
                 return
@@ -1114,8 +1117,13 @@ class ISO7816(object):
                 # avoid MF re-selection:
                 if [i, j] == MF:
                     fil = None
-					if self.dbg:
-                    	print 'avoid catastrophic looping' 
+                    if self.dbg:
+                    	print '[] avoid looping reselecting MF'
+                # avoid DF self reselection:
+                elif under_df and [i, j] == under_df:
+                    fil = None
+                    if self.dbg:
+                        print '[] avoid looping reselecting current DF'
                 # select by direct file id
                 else:
                     fil = self.select([i, j], sel_type)
@@ -1154,6 +1162,7 @@ class ISO7816(object):
             return
         DF = ret[1]
         
+        # this should never happen:
         for addr in DF:
             if 0x3f in addr and 0x00 == addr[addr.index(0x3f)+1]:
                 print 'looks like its going to loop infinitely...'
