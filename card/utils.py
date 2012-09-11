@@ -25,6 +25,16 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 from collections import deque
 from smartcard.util import toBytes
 
+
+###############
+# log wrapper #
+###############
+log_levels = {1:'ERR', 2:'WNG', 3:'DBG'}
+def log(level, string):
+    # could output to a file
+    # but here, just print()
+    print('[%s] %s' % (log_levels[level], string))
+    
 # from python 2.6, format('b') allows to use 0b10010110 notation: 
 # much convinient
 def byteToBit(byte):
@@ -204,10 +214,33 @@ def decode_BCD(data=[]):
     '''
     string = ''
     for B in data:
-        string += str( B & 0x0F )
-        string += str( B >> 4 )
-    return string 
+        # 1st digit (4 LSB), can be padding (e.g. 0xF)
+        if (B&0x0F) < 10: string += str(B&0x0F)
+        # 2nd digit (4 MSB), can be padding (e.g. 0xF)
+        if (B>>4) < 10: string += str(B>>4)
+    return string
 
+def compute_luhn(digit_str=''):
+    '''
+    compute_luhn('15632458') -> 4
+    
+    return the luhn code of the digits provided
+    '''
+    if not digit_str.isdigit():
+        print('you must provide a string of digits')
+        return
+    # append 0
+    d = [int(c) for c in digit_str+'0']
+    # sum of odd digits
+    cs = sum(d[-1::-2])
+    # sum of (sum of digits(even digits * 2))
+    cs += sum([(v*2)%9 if v != 9 else 9 for v in d[-2::-2]])
+    # modulo 10: luhn checksum
+    cs = cs%10
+    # return the luhn code
+    if cs == 0: return cs
+    else: return 10-cs
+    
 def write_dict(dict, fd):
     '''
     write a dict() content to a file descriptor
@@ -216,8 +249,46 @@ def write_dict(dict, fd):
     keys.sort()
     fd.write('\n')
     for k in keys:
-        fd.write('%s: %s\n' % (k, dict[k]))
+        rec = dict[k]
+        if isinstance(rec, list) and \
+        len(rec) == [isinstance(i, int) for i in rec].count(True):
+            rec = ''.join(['[', ' '.join(map(hex, rec)), ']'])
+        fd.write('%s: %s\n' % (k, rec))
 
+def make_graph(FS, master_name='(0x3F, 0x00)\nMF'):
+    try:
+        import pydot
+    except:
+        log(1, '(make_graph) pydot library not found: aborting')
+        return
+    #return
+    # build a graph using graphviz Dot language, with pydot
+    # create a graph with master MF or AID node
+    nodes={}
+    graph = pydot.Dot(graph_type='digraph', rankdir='LR')
+    nodes['master'] = pydot.Node(master_name, style='filled', fillcolor='green')
+    graph.add_node(nodes['master'])
+    # attach nodes under master
+    for file in FS:
+        abspath = file['Absolut Path']
+        # build file name for the node
+        label = ''.join(( \
+            ''.join((file['Name'], '\n')) if 'Name' in file.keys() else '', \
+            '(', hex(abspath[-2]), ' ', hex(abspath[-1]), ')'))
+        # check for EF or DF for node color
+        color='yellow' if file['Type'][:2] == 'EF' else 'blue'
+        # make node
+        nodes['%s'%abspath] = pydot.Node('%s'%abspath, label=label,\
+                              style='filled', fillcolor=color)
+        # put it in the graph and append it to the parent
+        graph.add_node(nodes['%s'%abspath])
+        graph.add_edge(pydot.Edge(nodes['%s'%abspath[:-2]] if \
+                        len(abspath) >= 4 else nodes['master'], \
+                        nodes['%s'%abspath]))
+    # and return graph ...
+    return graph
+    
+    
 
 #######################################################
 # Generic class to keep track of sent / received APDU #
