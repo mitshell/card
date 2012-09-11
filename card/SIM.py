@@ -46,12 +46,13 @@ class SIM(ISO7816):
         can also be used for USIM working in SIM mode,
         '''
         ISO7816.__init__(self, CLA=0xA0)
-        if self.dbg:
-            print '[DBG] type definition: %s' % type(self)
-            print '[DBG] CLA definition: %s' % hex(self.CLA)
         
-    
-    def sw_status(self, sw1, sw2):
+        if self.dbg >= 2:
+            log(3, '(SIM.__init__) type definition: %s' % type(self))
+            log(3, '(SIM.__init__) CLA definition: %s' % hex(self.CLA))
+        
+    @staticmethod
+    def sw_status(sw1, sw2):
         '''
         sw_status(sw1=int, sw2=int) -> string
         
@@ -59,7 +60,7 @@ class SIM(ISO7816):
         with ETSI / 3GPP SW codes
         helps to speak with the smartcard!
         '''
-        status = ISO7816.sw_status(self, sw1, sw2)
+        status = ISO7816.sw_status(sw1, sw2)
         if sw1 == 0x91: status = 'normal processing, with extra info ' \
             'containing a command for the terminal: length of the ' \
             'response data %d' % sw2
@@ -108,7 +109,7 @@ class SIM(ISO7816):
             self.coms.push( self.VERIFY(P2=pin_type, Data=PIN) )
         else: 
             if self.dbg: 
-                print '[WNG] bad parameters'
+                log(2, '(verify_pin) bad input parameters')
     
     def disable_pin(self, pin='', pin_type=1):
         '''
@@ -123,7 +124,7 @@ class SIM(ISO7816):
             self.coms.push( self.DISABLE_CHV(P2=pin_type, Data=PIN) )
         else:
             if self.dbg: 
-                print '[WNG] bad parameters'
+                log(2, '(disable_pin) bad input parameters')
     
     def unblock_pin(self, pin_type=1, unblock_pin=''):
         '''
@@ -136,7 +137,7 @@ class SIM(ISO7816):
         and set 0000 value for new PIN
         call ISO7816 UNBLOCK_CHV method
         '''
-        print 'not correctly implemented'
+        log(1, '(unblock_pin) not implemented: aborting')
         return
         #if pin_type == 1: 
         #    pin_type = 0
@@ -148,7 +149,7 @@ class SIM(ISO7816):
             #                [0x30, 0x30, 0x30, 0x30, 0xFF, 0xFF, 0xFF, 0xFF]) )
         else:
             if self.dbg: 
-                print '[WNG] bad parameters'
+                log(2, '(unblock_pin) bad input parameters')
             #return self.UNBLOCK_CHV(P2=pin_type)
     
     def parse_file(self, Data=[]):
@@ -219,25 +220,25 @@ class SIM(ISO7816):
         '''
         if len(RAND) != 16:
             if self.dbg: 
-                print '[WNG] needs a 16 bytes input RAND value'
+                log(1, '(run_gsm_alg) bad RAND value: aborting')
             return None
         # select DF_GSM directory
         self.select([0x7F, 0x20])
         if self.coms()[2] != (0x90, 0x00): 
-            if self.dbg: 
-                print '[DBG] %s' % self.coms()
+            if self.dbg >= 2: 
+                log(3, '(run_gsm_alg) %s' % self.coms())
             return None
         # run authentication
         self.coms.push(self.INTERNAL_AUTHENTICATE(P1=0x00, P2=0x00, Data=RAND))
         if self.coms()[2][0] != 0x9F:
-            if self.dbg: 
-                print '[DBG] %s' % self.coms()
+            if self.dbg >= 2: 
+                log(3, '(run_gsm_alg) %s' % self.coms())
             return None
         # get authentication response
         self.coms.push(self.GET_RESPONSE(Le=self.coms()[2][1]))
         if self.coms()[2] != (0x90, 0x00):
-            if self.dbg: 
-                print '[DBG] %s' % self.coms()
+            if self.dbg >= 2: 
+                log(3, '(run_gsm_alg) %s' % self.coms())
             return None
         SRES, Kc = self.coms()[3][0:4], self.coms()[3][4:]
         return [ SRES, Kc ]
@@ -252,15 +253,15 @@ class SIM(ISO7816):
         # select DF_GSM for SIM card
         self.select([0x7F, 0x20])
         if self.coms()[2] != (0x90, 0x00): 
-            if self.dbg: 
-                print '[DBG] %s' % self.coms()
+            if self.dbg >= 2: 
+                log(3, '(get_imsi) %s' % self.coms())
             return None
         
         # select IMSI file
         imsi = self.select([0x6F, 0x07])
         if self.coms()[2] != (0x90, 0x00): 
-            if self.dbg: 
-                print '[DBG] %s' % self.coms()
+            if self.dbg >= 2: 
+                log(3, '(get_imsi) %s' % self.coms())
             return None
         
         # and parse the received data into the IMSI structure
@@ -268,25 +269,29 @@ class SIM(ISO7816):
             return decode_BCD(imsi['Data'])[3:]
         
         # if issue with the content of the DF_IMSI file
-        if self.dbg: 
-            print '[DBG] %s' % self.coms()
+        if self.dbg >= 2: 
+            log(3, '(get_imsi) %s' % self.coms())
         return None
     
-    def scan_fs(self, filename='card_fs'):
+    def explore_fs(self, filename='sim_fs', emul=False):
         '''
-        scan_fs(self, filename='card_fs') -> void
-            filename: file to write found information in
+        self.explore_fs(self, filename='sim_fs') -> void
+            filename: file to write in information found
         
         brute force all file addresses from MF recursively 
         (until no more DF are found)
-        write information on existing file in the output file, 
+        write information on existing DF and file in the output file
         '''
-        fd = open(filename, 'w')
         simfs_entries = MF_FS.keys()
+        if not emul:
+            self.explore_DF([], None, True)
         
-        self.init_FS()
-        self.recu_files_bf()
+        fd = open(filename, 'w')
         fd.write('\n### MF ###\n')
+        f = self.select()
+        write_dict(f, fd)
+        fd.write('\n')
+        #
         for f in self.FS:
             path = tuple(f['Absolut Path'])
             if path in simfs_entries:
@@ -295,4 +300,4 @@ class SIM(ISO7816):
             fd.write('\n')
         
         fd.close()
-#
+    
