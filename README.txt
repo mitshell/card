@@ -39,10 +39,18 @@ Mistakes remains surely still in these scripts, so use it with care.
 UICC and USIM classes do not implement logical channels.
 ISO7816 and UICC security conditions parsing is really not well implemented.
 
-SIM and USIM classes have a .scan_fs() method.
+SIM and USIM classes have a .explore_fs() method.
 This allows to scan the ICC file-system from MF or AIDs recursively (enter DF each time one is found).
-It gets file manament parameters, and file content if access right is OK,
+It gets file manament parameters, and file content if access right is granted,
 and put every thing into a text file.
+Those methods are based on the .explore_DF() method from an ICC instance, 
+which recursively enters all DF until there no more is found.
+This last method build a dictionary of the filesystem within .FS attribute of ICC the instance.
+When proceeding from the MF, it can take several hours as the scaning process bruteforce all file addresses.
+The function make_graph() from the utils part make a .dot file for graphing the filesystem.
+So with those functions, it is easy to obtain SIM / USIM filesystem content and graphical representation, 
+including all non standard files that are linked from the MF or AID root file.
+
 
 #####################
 # example sessions: #
