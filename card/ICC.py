@@ -85,6 +85,7 @@ class ISO7816(object):
         0x87 : 'GENERAL AUTHENTICATE',
         0x88 : 'INTERNAL AUTHENTICATE',
         0x89 : 'AUTHENTICATE',
+        0x99 : 'PROGRAM SYSMO_USIM',
         0xA0 : 'SEARCH BINARY',
         0xA1 : 'SEARCH BINARY',
         0xA2 : 'SEARCH RECORD',
@@ -177,19 +178,19 @@ class ISO7816(object):
         if pcsc_scan is installed,
         use the signature file passed as argument for guessing the card
         '''
-        print '\nsmartcard reader: ', self.reader
+        print('\nsmartcard reader: %s' % self.reader)
         if self.ATR != None:
-            print "\nsmart card ATR is: %s" % toHexString(self.ATR)
-            print 'ATR analysis: '
-            print ATR(self.ATR).dump()
-            print '\nhistorical bytes: ', \
-                toHexString(ATR(self.ATR).getHistoricalBytes())
+            print('\nsmart card ATR is: %s' % toHexString(self.ATR))
+            print('ATR analysis: ')
+            print('%s' % ATR(self.ATR).dump())
+            print('\nhistorical bytes: %s' \
+                  % toHexString(ATR(self.ATR).getHistoricalBytes()))
             ATRcs = ATR(self.ATR).getChecksum()
             if ATRcs :
-                print 'checksum: ', "0x%X" % ATRcs
+                print('checksum: 0x%X' % ATRcs)
             else:
-                print 'no ATR checksum'
-            print "\nusing pcsc_scan ATR list file: %s" % smlist_file
+                print('no ATR checksum')
+            print('\nusing pcsc_scan ATR list file: %s' % smlist_file)
             if os.path.exists(smlist_file):
                 smlist = open(smlist_file).readlines()
                 ATRre = re.compile('(^3[BF]){1}.{1,}$')
@@ -203,13 +204,14 @@ class ISO7816(object):
                                 ATRfinger += smlist[i+j][1:]
                                 j += j
                 if ATRfinger == '' :
-                    print "no ATR fingerprint found in file: %s" % smlist_file
+                    print('no ATR fingerprint found in file: %s' % smlist_file)
                 else:
-                    print "smartcard ATR fingerprint:\n%s" % ATRfinger
+                    print('smartcard ATR fingerprint:\n%s' % ATRfinger)
             else:
-                print "%s file not found" % smlist_file
+                print('%s file not found' % smlist_file)
     
-    def sw_status(self, sw1, sw2):
+    @staticmethod
+    def sw_status(sw1, sw2):
         '''
         sw_status(sw1=int, sw2=int) -> string
         
@@ -357,8 +359,9 @@ class ISO7816(object):
         clist = []
         for i in range(start, 256):
             ret = self.sr_apdu([i] + param)
-            if ret[2] != (0x6E, 0x00): 
-                print ret
+            if ret[2] != (0x6E, 0x00):
+                # DBG log
+                log(3, '(CLA bruteforce) %s' % ret)
                 clist.append(i)
         return clist
     
@@ -377,12 +380,13 @@ class ISO7816(object):
         '''
         ilist = []
         for i in range(start, 256):
-            if self.dbg > 1: 
-                print 'DEBUG: testing %d for INS code with %d CLA code' \
-                      % (i, self.CLA)
+            if self.dbg >= 3:
+                log(3, '(INS bruteforce) testing %d for INS code ' \
+                    'with %d CLA code' % (i, self.CLA))
             ret = self.sr_apdu([self.CLA, i, 0x00, 0x00])
             if ret[2] != (0x6D, 0x00): 
-                print ret
+                # DBG log
+                log(3, '(INS bruteforce) %s' % ret)
                 ilist.append(i)
         return ilist
     
@@ -674,15 +678,16 @@ class ISO7816(object):
         for file structure and parsing method...
         '''
         ber = BERTLV_parser( Data )
-        if self.dbg > 1:
-            print '[DBG] BER structure:\n%s' % ber
+        if self.dbg >= 3:
+            log(3, 'BER structure:\n%s' % ber)
         if len(ber) > 1:
             # TODO: implements recursive BER object parsing
-            print '[WNG] more than 1 BER object: %s' % ber
+            log(1, '(parse_file) contain more than 1 BER object: '\
+                '%s\nnot implemented' % ber)
         
         # for FCP control structure, precise parsing is done
         # this structure seems to be the most used for (U)SIM cards
-        if ber[0][0][2] == 0x2: 
+        if ber[0][0][2] == 0x2:
             fil = self.parse_FCP( ber[0][2] )
             fil['Control'] = 'FCP'
             return fil
@@ -692,15 +697,17 @@ class ISO7816(object):
         if ber[0][0][2] == 0x4: 
             fil['Control'] = 'FMD'
             if self.dbg:
-                print '[WNG] FMD file structure parsing not implemented'
+                log(1, '(parse_file) FMD file structure parsing ' \
+                    'not implemented')
         elif ber[0][0][2] == 0xF: 
             fil['Control'] = 'FCI'
             if self.dbg:
-                print '[WNG] FCI file structure parsing not implemented'
+                log(1, '(parse_file) FCI file structure parsing '
+                    'not implemented')
         else: 
             fil['Control'] = ber[0][0]
             if self.dbg:
-                print '[WNG] unknown file structure'
+                log(1, '(parse_file) unknown file structure')
         fil['Data'] = ber[0][2]
         
         return fil
@@ -720,12 +727,12 @@ class ISO7816(object):
             # TODO: seemd full compliancy 
             # would require to work with the BERTLV parser...
             [T, L, V] = first_TLV_parser(toProcess)
-            if self.dbg > 2:
+            if self.dbg >= 3:
                 if T in self.file_tags.keys(): 
                     Tag = self.file_tags[T]
                 else: 
                     Tag = T
-                print '[DBG] %s / %s: %s' % (T, Tag, V)
+                log(3, '(parse_FCP) Tag value %s / type %s: %s' % (T, Tag, V))
             
             # do extra processing here
             # File ID, DF name, Short file id
@@ -734,11 +741,18 @@ class ISO7816(object):
             # Security Attributes compact format
             elif T == 0x8C:
                 fil[self.file_tags[T]] = V
-                fil = self.parse_security_attribute_compact(V, fil)
-            # Security Attributes
-            elif T in (0x86, 0x8B, 0x8E, 0xA0, 0xA1, 0xAB):
+                fil = self.parse_compact_security_attribute(V, fil)
+            # Security Attributes ref to expanded
+            elif T == 0x8B:
                 fil[self.file_tags[T]] = V 
-                # TODO: no concrete parsing at this time... 
+                fil = self.parse_expanded_security_attribute(V, fil)
+            # other security attributes... not implemented
+            elif T in (0x86, 0x8E, 0xA0, 0xA1, 0xAB):
+                fil[self.file_tags[T]] = V 
+                # TODO: no concrete parsing at this time...
+                if self.dbg:
+                    log(2, '(parse_FCP) parsing security attributes not ' \
+                        'implemented for tag 0x%X' % T)
                 fil = self.parse_security_attribute(V, fil)
             # file size or length
             elif T in (0x80, 0x81):
@@ -860,7 +874,7 @@ class ISO7816(object):
         return fil
     
     @staticmethod
-    def parse_security_attribute_compact(Data, fil):
+    def parse_compact_security_attribute(Data, fil):
         '''
         parses a list of bytes provided in Data
         interprets the content as the compact form for security parameters
@@ -871,43 +885,110 @@ class ISO7816(object):
         SC = Data[1:]
         sec = '#'
         
+        # check access mode
         if 'Type' in fil.keys():
-            # DF parsing
+            # DF security attributes parsing
             if fil['Type'] == 'DF':
-                if AM & 0b10000000 == 0:
-                    if AM & 0b01000000: sec += ' DELETE FILE #'
-                    if AM & 0b00100000: sec += ' TERMINATE DF #'
-                    if AM & 0b00010000: sec += ' ACTIVATE FILE #'
-                    if AM & 0b00001000: sec += ' DEACTIVATE FILE #'
-                if AM & 0b00000100: sec += ' CREATE DF #'
-                if AM & 0b00000010: sec += ' CREATE EF #'
-                if AM & 0b00000001: sec += ' DELETE FILE #'
-            # EF parsing
+                sec += self._DF_access_mode(AM)
+            # EF security attributes parsing
             else:
-                if AM & 0b10000000 == 0:
-                    if AM & 0b01000000: sec += ' DELETE FILE #'
-                    if AM & 0b00100000: sec += ' TERMINATE EF #'
-                    if AM & 0b00010000: sec += ' ACTIVATE FILE #'
-                    if AM & 0b00001000: sec += ' DEACTIVATE FILE #'
-                if AM & 0b00000100: sec += ' WRITE / APPEND #'
-                if AM & 0b00000010: sec += ' UPDATE / ERASE #'
-                if AM & 0b00000001: sec += ' READ / SEARCH #'
-        
-            # loop on SC:
+                sec += self._EF_access_mode(AM)
+            # loop on security conditions for the given access mode:
             for cond in SC:
-                if   cond == 0   : sec += ' Always #'
-                elif cond == 0xff: sec += ' Never #'
-                else:
-                    sec += ' SEID %s #' % (cond & 0b00001111)
-                    if cond & 0b10000000: sec += ' all conditions #'
-                    else: sec += ' at least 1 condition #'
-                    if cond & 0b01000000: sec += ' secure messaging #'
-                    if cond & 0b00100000: sec += ' external authentication #'
-                    if cond & 0b00010000: sec += ' user authentication #'
-            
-            #file['Security Attributes raw'] = Data
+                sec += self._sec_cond(cond)
+        # return security conditions if parsed, return raw bytes otherwise
+        if sec == '#':
+            fil['Security Attributes raw'] = Data
+        else:
             fil['Security Attributes'] = sec
         return fil
+    
+    @staticmethod
+    def _DF_access_mode(AM):
+        sec = ''
+        if AM & 0b10000000 == 0:
+            if AM & 0b01000000: sec += ' DELETE FILE #'
+            if AM & 0b00100000: sec += ' TERMINATE DF #'
+            if AM & 0b00010000: sec += ' ACTIVATE FILE #'
+            if AM & 0b00001000: sec += ' DEACTIVATE FILE #'
+        if AM & 0b00000100: sec += ' CREATE DF #'
+        if AM & 0b00000010: sec += ' CREATE EF #'
+        if AM & 0b00000001: sec += ' DELETE FILE #'
+        return sec
+    
+    @staticmethod
+    def _EF_access_mode(AM):
+        sec = ''
+        if AM & 0b10000000 == 0:
+            if AM & 0b01000000: sec += ' DELETE FILE #'
+            if AM & 0b00100000: sec += ' TERMINATE EF #'
+            if AM & 0b00010000: sec += ' ACTIVATE FILE #'
+            if AM & 0b00001000: sec += ' DEACTIVATE FILE #'
+        if AM & 0b00000100: sec += ' WRITE / APPEND #'
+        if AM & 0b00000010: sec += ' UPDATE / ERASE #'
+        if AM & 0b00000001: sec += ' READ / SEARCH #'
+        return sec
+        
+    @staticmethod
+    def _Obj_access_mode(AM):
+        sec = ''
+        if AM & 0b00000100: sec += 'MANAGE SEC ENVIRONMENT #'
+        if AM & 0b00000010: sec += 'PUT DATA'
+        if AM & 0b00000001: sec += 'GET DATA'
+        return sec
+        
+    @staticmethod
+    def _Tab_access_mode(val):
+        sec = ''
+        if AM & 0b10000000 == 0:
+            if AM & 0b01000000: sec += ' CREATE / DELETE USER #'
+            if AM & 0b00100000: sec += ' GRANT / REVOKE #'
+            if AM & 0b00010000: sec += ' CREATE TABLE / VIEW / DICT #'
+            if AM & 0b00001000: sec += ' DROP TABLE / VIEW #'
+        if AM & 0b00000100: sec += ' INSERT #'
+        if AM & 0b00000010: sec += ' UPDATE / DELETE #'
+        if AM & 0b00000001: sec += ' FETCH #'
+        return sec
+    
+    @staticmethod
+    def _sec_cond(cond):
+        sec = ''
+        if   cond == 0   : sec += ' Always #'
+        elif cond == 0xff: sec += ' Never #'
+        else:
+            sec += ' SEID %s #' % (cond & 0b00001111)
+            if cond & 0b10000000: sec += ' all conditions #'
+            else: sec += ' at least 1 condition #'
+            if cond & 0b01000000: sec += ' secure messaging #'
+            if cond & 0b00100000: sec += ' external authentication #'
+            if cond & 0b00010000: sec += ' user authentication #'
+        return sec
+    
+    @staticmethod
+    def parse_expanded_security_attribute(Data, fil):
+        '''
+        check references to EF_ARR file containing access conditions
+        see ISO 7816-4
+        '''
+        # self.ARR = {ARR_id:[ARR_content],...}
+        return fil
+        file_length = len(Data)
+        if file_length == 1:
+            ARR_byte = Data
+        elif file_length == 3:
+            ARR_ref = Data[0:2]
+            ARR_byte = Data[2:3]
+        elif file_length > 3:
+            ARR_ref = Data[0:2]
+            # handle SEID and ARR.byte in 2 // lists
+            SEID_bytes, ARR_bytes = [], []
+            # in case file_length is not even: truncate it...
+            if file_length%2 == 1: file_length -= 1
+            # parse SEID / ARR.bytes
+            for i in range(2, file_length, 2):
+                SEID_byte.append(Data[i:i+1])
+                ARR_byte.append(Data[:+1:i+2])
+            
     
     @staticmethod
     def parse_security_attribute(Data, fil):
@@ -917,8 +998,7 @@ class ISO7816(object):
         need to work further on how to do it (with ref to EF_ARR)
         '''
         # See ISO-IEC 7816-4 section 5.4.3, with compact and expanded format
-        #if self.dbg:
-        #    print '[DBG] parse_security_attribute() not implemented'
+        # not implemented yet (looks like useless for (U)SIM card ?)
         return fil
         
     def read_EF(self, fil):
@@ -933,8 +1013,8 @@ class ISO7816(object):
         if fil['Structure'] == 'transparent':
             self.coms.push( self.READ_BINARY(Le=fil['Size']) )
             if self.coms()[2] != (0x90, 0x00):
-                if self.dbg > 1: 
-                    print '[DBG] %s' % self.coms()
+                if self.dbg >= 3: 
+                    log(3,  '(read_EF) %s' % self.coms())
                 return fil
             fil['Data'] = self.coms()[3]
         
@@ -949,9 +1029,9 @@ class ISO7816(object):
                 if self.coms()[2] != (0x90, 0x00):
                     # should mean there is an issue 
                     # somewhere in the file parsing process
-                    if self.dbg:
-                        print '[WNG] error in iterating the RECORD parsing at' \
-                              ' iteration %s\n%s' % (i, self.coms())
+                    if self.dbg >= 2:
+                        log(2, '(read_EF) error in iterating the RECORD ' \
+                            'parsing at iteration %s\n%s' % (i, self.coms()))
                     return fil
                 if self.coms()[3][1:] == len(self.coms()[3][1:]) * [255]:
                     # record is empty, contains padding only
@@ -963,35 +1043,43 @@ class ISO7816(object):
         # [[Record1],[Record2]...] for cyclic / linear
         return fil
     
-    def select(self, Data=[0x3F, 0x00], typ="fid", with_length=True):
+    def select(self, addr=[0x3F, 0x00], type="fid", with_length=True):
         '''
-        self.select(Data=[0x.., 0x..], typ="fid", with_length=True) 
-            -> dict(file) on success, None on error
+        self.select(addr=[0x.., 0x..], type="fid", with_length=True) 
+            -> dict() on success, None on error
         
-        selects the file
+        selects the file at the given address
         if error, returns None
         if processing correct: gets response with info on the file
-        if processing correct and EF file: reads the data in the file
-            works in USIM fashion
-        else returns the data dictionnary: check parse_file_(U)SIM methods
-        last apdu available from the attribute self.coms
+        if EF file: tries to read the data within the file
+            security conditions, aka PIN/ADM codes, need to be satified
+        returns the complete file structure and content as a dictionnary
+            `self`.parse_file() method currently implements only FCP structure
+            for working with USIM
         
-        different types of file selection are possible:
-        "fid": select by file id, only the direct child or 
-               parent files of the last selected MF / DF / ADF
+        different types of file selection are possible (P1 parameter of the 
+        SELECT_FILE APDU):
+        "fid": select by file id, only the direct child of current DF 
+               or parent DF or immediate children of parent DF 
+               current DF: last selected MF / DF / ADF
         "pmf": select by path from MF
         "pdf": select by path from last selected MF / DF / ADF 
                (or relative path)
         "aid": select by ADF (Application) name
+        
+        with_length: correspond to the Lc byte preprended to the address
+                     in the SELECT_FILE APDU
+        
+        APDUs exchanged available thanks to the attribute `self`.coms
         '''
         # get the UICC trigger
         is_UICC = isinstance(self, UICC)
         
         # handle type of selection:
-        if   typ == "pmf": P1 = 0x08
-        elif typ == "pdf": P1 = 0x09
-        elif typ == "aid": P1 = 0x04
-        # the case of selection by "fid":
+        if   type == "pmf": P1 = 0x08
+        elif type == "pdf": P1 = 0x09
+        elif type == "aid": P1 = 0x04
+        # the default case, selection by "fid":
         else: P1 = 0x00 
         
         # for UICC instance
@@ -1002,176 +1090,234 @@ class ISO7816(object):
             P2 = 0x00
         
         # used to get back to MF without getting MF attributes:
-        if len(Data) == 0: 
-            P1, P2 = 0x00, 0x0C
+        #if len(addr) == 0: 
+        #    P1, P2 = 0x00, 0x0C
+        # this is however not correct... commented
         
         # select file and check SW; if error, returns None, 
         # else get response
-        self.coms.push(self.SELECT_FILE(P1=P1, P2=P2, Data=Data, \
+        self.coms.push(self.SELECT_FILE(P1=P1, P2=P2, Data=addr, \
             with_length=with_length))
         
         # different SW codes for UICC and old ISO card (e.g. SIM)
         if is_UICC and self.coms()[2][0] != 0x61 \
         or not is_UICC and self.coms()[2][0] != 0x9F:
-            if self.dbg > 1: 
-                print '[DBG] %s' % self.coms()
+            if self.dbg >= 3: 
+                log(3, '(select) %s' % self.coms())
             return None
             
         # get response and check SW: 
         # if error, return None, else parse file info
         self.coms.push(self.GET_RESPONSE(Le=self.coms()[2][1]))
         if self.coms()[2] != (0x90, 0x00):
-            if self.dbg > 1: 
-                print '[DBG] %s' % self.coms()
+            if self.dbg >= 3: 
+                log(3, '(select) %s' % self.coms())
             return None
         
         data = self.coms()[3]
-        # take the `parse_file()' method from the instance:
-        # ISO7816, UICC or SIM
-        fil = self.parse_file(data)
-        if fil['Type'][0:2] == 'EF':
-            fil = self.read_EF(fil)
+        # take the parse_file() method from the instance:
+        # ISO7816, UICC (for USIM) or SIM
+        file = self.parse_file(data)
+        if file['Type'][0:2] == 'EF':
+            file = self.read_EF(file)
         
         # finally returns the whole file dictionnary, 
-        # containing the ['Data'] key for EF file
-        return fil
+        # containing the ['Data'] key for EF file content
+        return file
     
     ###############
     # The following may need some improvements
     ###############
     
-    def flat_files_bf(self, path=[], under_AID=0, \
-                      hi_addr=(0, 0xff), lo_addr=(0, 0xff)):
+    def go_to_path(self, path=[], under_AID=None):
         '''
-        flat_files_bf(self, path=[], under_AID=0, \
-                      hi_addr=(0, 0xff), lo_addr=(0, 0xff))
-            -> list(files), list(DF_to_explore)
-        
-        path: path of the DF under MF or AID to brute force
-        under_AID: if > 0, select the AID number to init the brute force
-            only available for UICC instance
-        hi_addr: 8 MSB of the file address to brute force
-        lo_addr: 8 LSB of the file address to brute force
-        
-        brute force file addresses of direct child under a given DF
-        get information on existing files, and discovered DF
-        '''
-        # init return variables
-        FS, DF_to_explore = [], []
-        # init selection process
-        MF, sel_type = [0x3F, 0x00], 'fid'
-        if isinstance(self, UICC):
-            sel_type = 'pdf'
-        
-        # start by selecting MF
-        try:
-            r = self.select(MF)
-        except:
-            print '[ERR] selecting MF failed'
-            return
-        if r == None:
-            print '[ERR] MF not found!'
-            return
-        
-        #if needed, select AID
-        if isinstance(self, UICC) and under_AID:
-            try:
-                self.get_AID()
-                r = self.select_by_aid(under_AID)
-            except:
-                print '[ERR] selecting AID failed'
-                return
-            if r == None:
-                print '[ERR] AID not found'
-                return
-        
-        # place on the DF path to bf
-        # select it according to the card application selection type
-        under_df = None
-        if len(path) > 0:
-            try:
-                path_init = self.select(path, sel_type)
-                under_df = path[-2:]
-            except:
-                print '[ERR] selecting path failed:\n%s' % self.coms()
-                return
-            if path_init == None:
-                print '[ERR] path not found: %s' % path
-                return
-        
-        # Dany'style programming
-        def reinit():
-            self.select(MF)
-            if isinstance(self, UICC) and under_AID:
-                self.select_by_aid(under_AID)
-            if len(path) > 0:
-                self.select(path, sel_type)
-        
-        # loop over the address space to brute force files
-        i, j = 0, 0
-        for i in range(hi_addr[0], hi_addr[1]+1):
-            if self.dbg and i%2 == 0:
-                print '[DBG] addr: %s %s %s' % ([hex(v) for v in path], \
-                       hex(i), hex(j))
-            for j in range(lo_addr[0], lo_addr[1]+1):
-                # avoid MF re-selection:
-                if [i, j] == MF:
-                    fil = None
-                    if self.dbg:
-                    	print '[] avoid looping reselecting MF'
-                # avoid DF self reselection:
-                elif under_df and [i, j] == under_df:
-                    fil = None
-                    if self.dbg:
-                        print '[] avoid looping reselecting current DF'
-                # select by direct file id
-                else:
-                    fil = self.select([i, j], sel_type)
-                    if fil:
-                        if self.dbg:
-                            print '[DBG] found file at path, id: ' \
-                                  '%s %s' % (path, [i, j])
-                        if 'File Identifier' in fil.keys():
-                            fil['Absolut Path'] = path+fil['File Identifier']
-                        FS.append(fil)
-                        if 'Type' in fil.keys() and fil['Type'] == 'DF':
-                            reinit()
-                            if 'Absolut Path' in fil.keys():
-                                DF_to_explore.append(fil['Absolut Path'])
-        
-        # re-initialize at MF and return
-        self.select(MF)
-        return FS, DF_to_explore
-    
-    def recu_files_bf(self, path=[], under_AID=0):
-        '''
-        recu_files_bf(self, path=[], under_AID=0)
+        self.go_to_path(path=[0x.., 0x.., 0x.., 0x.., ..], under_AID=None)
             -> void
         
-        fills self.FS attribute with all files and DF discovered
-        recursively
+        selects all DF addresses successively from the path given
+        uses the .select() method with "fid" as selection type 
+        works with AID number too
         '''
-        #TODO: put a maximum recursion parameter
-        
-        # list all files and DF on the path
-        ret = self.flat_files_bf(path=path, under_AID=under_AID)
-        try:
-            self.FS += ret[0]
-        except:
-            '[ERR] FS not initialized: %s' % type(self.FS)
+        # check path length
+        if len(path) % 2:
+            log(1, '(go_to_path) path length not correct: %s' % path)
             return
-        DF = ret[1]
+        # init under MF
+        self.select([0x3F, 0x00])
+        # init under AID if needed
+        if isinstance(self, UICC) and under_AID is not None:
+            self.select_by_aid(under_AID)
+        # select over the whole path
+        [self.select(addr, 'fid') for addr in \
+            [path[i:i+2] for i in range(0,len(path),2)]]
+    
+    
+    # the MF or AID directory structure is a dictionnary:
+    # e.g.
+    #self._MF_struct = {
+    #tuple(df_absolute_addr) : (child_df1, child_df2, ...),
+    #...}
+    # or
+    #self._AID1_struct ...
+    #
+    # this helps to build the blacklist:
+    
+    def make_blacklist(self, DF_path=[], under_AID=None):
+        '''
+        self.make_blacklist(DF_path=[0x.., 0x.., 0x.., 0x..], under_AID=None)
+            -> list( DFs )
         
-        # this should never happen:
-        for addr in DF:
-            if 0x3f in addr and 0x00 == addr[addr.index(0x3f)+1]:
-                print 'looks like its going to loop infinitely...'
-                
-        # recursive method call
-        # DF contains absolut path
-        for addr in DF:
-            print '[DBG] path: %s' % addr
-            self.recu_files_bf(path=addr, under_AID=under_AID)
+        check dictionnaries describing MF or AID directory structure
+        and return DF not to select when scanning for file ID under a DF
+        '''
+        # IC card Master File, never reselect it...
+        MF = [0x3F, 0x00]
+        # you should also avoid to reselect it
+        # looks like an alias of the MF
+        pseudo_MF = [0x3F, 0xFF]
+        # init BlackList with MF and current DF
+        BL = [ MF, pseudo_MF ]
+        #
+        # check if current DF is root: returns directly
+        current_DF = DF_path[-2:]
+        # then, AID directory structure to use if under_AID
+        if under_AID:
+            if not hasattr(self, '_AID%i_struct' % under_AID):
+                if self.dbg >= 2:
+                    log(2, '(make_blacklist)  AID%i directory structure not' \
+                           ' found' % under_AID)
+                if current_DF: BL.append(current_DF) 
+                return BL
+            dir_struct = getattr(self, '_AID%i_struct' % under_AID)
+        # else, select MF directory structure to use
+        else:
+            if not hasattr(self, '_MF_struct'):
+                if self.dbg >= 2:
+                    log(2, '(make_blacklist) MF directory structure not found')
+                if current_DF: BL.append(current_DF)
+                return BL
+            dir_struct = self._MF_struct
+        #
+        # if parent_DF is root (MF or AID), add only childs of root
+        # which contains the current DF
+        if len(DF_path) == 2:
+            BL.extend( dir_struct[()] )
+            return BL
+        # if DF is 2nd order or more, add father DF and its children
+        # one of which contains the current DF
+        elif len(DF_path) >= 4:
+            BL.append( DF_path[-4:-2] )
+            BL.extend( dir_struct[tuple(DF_path[:-2])] )
+            return BL
+        # if DF_path is empty or malformed...
+        else:
+            if current_DF: BL.append(current_DF) 
+            return BL
+    
+    def scan_DF(self, dir_path=[], under_AID=None, \
+                hi_addr=(0, 0xff), lo_addr=(0, 0xff)):
+        '''
+        self.scan_DF(dir_path=[0x.., 0x.., 0x.., 0x..], under_AID=None)
+            -> list(filesystem), list(child_DF)
+        
+        try to select all file addresses under a given DF path
+            hi_addr: 8 MSB of the file address to brute force
+            lo_addr: 8 LSB of the file address to brute force
+        avoid selecting blacklisted files (MF, parent_DF, brother_DF, current_DF)
+        return list of all found files (EF, DF) and list of child DF
+        '''
+        # build blacklist of addresses from the current directory structure
+        # and selected path, in order to select only child file ID:
+        BL = self.make_blacklist(dir_path, under_AID)
+        if self.dbg >= 2:
+            log(3, 'blacklist: %s' % BL)
+        # init variables to return
+        FS, child_DF = [], []
+        #
+        # init to path
+        self.go_to_path(dir_path, under_AID)
+        # bruteforce child file addresses
+        i, j = 0, 0
+        for i in range(hi_addr[0], hi_addr[1]+1):
+            # just make it verbose...
+            if self.dbg and i%32 == 0:
+                log(3, '(scan_DF) addr: %s %s' % (dir_path, [i, j]))
+            for j in range(lo_addr[0], lo_addr[1]+1):
+                addr = [i, j]
+                # avoid selection of blacklisted addresses:
+                if addr in BL:
+                    pass
+                # select by direct file id
+                else:
+                    file = self.select(addr, 'fid')
+                    if file:
+                        if self.dbg:
+                            log(3, '(scan_DF) found file at path: %s' \
+                                  % (dir_path + addr))
+                        # keep track of absolute path
+                        file['Absolut Path'] = dir_path + addr
+                        # add result to grow the filesystem
+                        FS.append(file)
+                        # now fill in child_DF to potentially 
+                        # grow the directory structure
+                        if 'Type' in file.keys() and file['Type'] == 'DF':
+                            # for UICC, avoid reselecting AID DF
+                            if under_AID and 'DF Name' in file.keys() \
+                            and file['DF Name'] == self.AID[under_AID-1]:
+                                if self.dbg:
+                                    log(3, '(scan_DF) USIM AID alias at %s: ' \
+                                           'ignoring it' % addr)
+                            else:
+                                child_DF.append(addr)
+                            # replace selection to parent_path
+                            self.go_to_path(dir_path, under_AID)
+        #
+        # re-initialize at MF and return
+        self.select([0x3F, 0x00])
+        return FS, child_DF
+    
+    def explore_DF(self, DF_path=[], under_AID=None, recursive=True):
+        '''
+        self.explore_DF(dir_path=[0x.., 0x.., 0x.., 0x..], under_AID=None, \
+                        recursive=True)
+            -> None
+        
+        try to select all file addresses under a given DF path recursively with
+        scan_DF() method, possibly recursively (can be an `int`, to stop after
+        a certain level)
+        fill in self.FS dictionnary with found DF and files
+        and self._MF_struct or self._AID`num`_struct with directory structure
+        '''
+        # init by scanning the given DF_path (MF or AID)
+        FS, child_DF = self.scan_DF(DF_path, under_AID)
+        # then init or extend self._MF_struct or 
+        # self._AID`num`_struct for blacklist management
+        if under_AID:
+            # if _AID`num`_struct not initialized (we are at AID root):
+            if not hasattr(self, '_AID%i_struct' % under_AID):
+                setattr(self, '_AID%i_struct' % under_AID, {})
+            # then populate _AID`num`_struct with found child_DF
+            getattr(self, '_AID%i_struct' % under_AID)[tuple(DF_path)] = child_DF
+        else:
+            # if _MF_struct not initialized (we are at MF root):
+            if not hasattr(self, '_MF_struct'):
+                self._MF_struct = {}
+            self._MF_struct[tuple(DF_path)] = child_DF
+        # populate the self.FS
+        if not hasattr(self, 'FS'):
+            self.init_FS()
+        self.FS.extend(FS)
+        #
+        # and loop to scan recursively over child_DF
+        if recursive:
+            # manage maximum recursion level: do not scan children DF
+            # if absolut path is over recursion level
+            if type(recursive) == int and len(DF_path)/2 >= recursive:
+                return
+            # scan children DF
+            for path in map(DF_path.__add__, child_DF):
+                print('recursive selection of path %s' % path)
+                self.explore_DF(path, under_AID, recursive)
     
     def init_FS(self):
         self.FS = []
@@ -1288,10 +1434,9 @@ class UICC(ISO7816):
         ISO7816.__init__(self, CLA=0x00)
         self.AID = []
         
-        if self.dbg:
-            print '[DBG] type definition: %s' % type(self)
-            print '[DBG] CLA definition: %s' % hex(self.CLA)
-            #print '[DBG] EF_DIR file selection and reading...'
+        if self.dbg >= 2:
+            log(3, '(UICC.__init__) type definition: %s' % type(self))
+            log(3, '(UICC.__init__) CLA definition: %s' % hex(self.CLA))
     
     def parse_file(self, Data=[]):
         '''
@@ -1359,8 +1504,9 @@ class UICC(ISO7816):
                     PIN_status += 'RFU (Local)#'
                 else: 
                     PIN_status += '#'
-            #if self.dbg >= 2: 
-            #    print '[DBG] %s: %s; PIN status: %s' % (T, V, PIN_status)
+            #if self.dbg >= 3: 
+            #    log(3, '(parse_pin_status) %s: %s; PIN status: %s' \
+            #        % (T, V, PIN_status))
             Data = Data[L+2:]
         fil['PIN Status'] = PIN_status
         return fil
@@ -1374,12 +1520,12 @@ class UICC(ISO7816):
         interprets and print the content of the self.AID list
         '''
         #go back to MF and select EF_DIR
-        #self.select(Data=[])
+        #self.select(addr=[])
         
         # EF_DIR is at the MF level and contains Application ID:
-        EF_DIR = self.select([0x2F, 0x00], typ='pmf')
-        if self.dbg: 
-            print '[DBG] EF_DIR: %s' % EF_DIR
+        EF_DIR = self.select([0x2F, 0x00], type='pmf')
+        if self.dbg >= 3: 
+            log(3, '(get_AID) EF_DIR: %s' % EF_DIR)
         if EF_DIR is None: 
             return None
         
@@ -1390,32 +1536,36 @@ class UICC(ISO7816):
             and rec[4:4+rec[3]] not in self.AID:
                 self.AID.append( rec[4:4+rec[3]] )
         
-        i = 1
         for aid in self.AID:
-            aid_rid = tuple(aid[0:5])
-            aid_app = tuple(aid[5:7])
-            aid_country = tuple(aid[7:9])
-            aid_provider = tuple(aid[9:11])
-            
-            # get AID application code, depending on SDO...
-            if aid_rid == (0xA0, 0x00, 0x00, 0x00, 0x09) \
-            and aid_app in self.ETSI_AID_app_code.keys(): 
-                aid_app = self.ETSI_AID_app_code[aid_app]
-            if aid_rid == (0xA0, 0x00, 0x00, 0x00, 0x87) \
-            and aid_app in self.GPP_AID_app_code.keys(): 
-                aid_app = self.GPP_AID_app_code[aid_app]
-            if aid_rid == (0xA0, 0x00, 0x00, 0x03, 0x43) \
-            and aid_app in self.GPP2_AID_app_code.keys(): 
-                aid_app = self.GPP2_AID_app_code[aid_app]
-            # get AID responsible SDO and country
-            if aid_rid in self.AID_RID.keys(): aid_rid = self.AID_RID[aid_rid]
-            if aid_country in self.AID_country_code.keys(): 
-                aid_country = self.AID_country_code[aid_country]
-            
-            print 'found [AID %s] %s || %s || %s || %s || %s' \
-                  % (i, aid_rid, aid_app, aid_country, \
-                     aid_provider, tuple(aid[11:]) )
-            i += 1
+            self.interpret_AID(aid)
+    
+    @staticmethod
+    def interpret_AID(aid=[]):
+        if len(aid) < 11:
+            return
+        # check AID format
+        aid_rid = tuple(aid[0:5])
+        aid_app = tuple(aid[5:7])
+        aid_country = tuple(aid[7:9])
+        aid_provider = tuple(aid[9:11])
+        
+        # get AID application code, depending on SDO...
+        if aid_rid == (0xA0, 0x00, 0x00, 0x00, 0x09) \
+        and aid_app in UICC.ETSI_AID_app_code.keys(): 
+            aid_app = UICC.ETSI_AID_app_code[aid_app]
+        if aid_rid == (0xA0, 0x00, 0x00, 0x00, 0x87) \
+        and aid_app in UICC.GPP_AID_app_code.keys(): 
+            aid_app = UICC.GPP_AID_app_code[aid_app]
+        if aid_rid == (0xA0, 0x00, 0x00, 0x03, 0x43) \
+        and aid_app in UICC.GPP2_AID_app_code.keys(): 
+            aid_app = UICC.GPP2_AID_app_code[aid_app]
+        # get AID responsible SDO and country
+        if aid_rid in UICC.AID_RID.keys(): aid_rid = UICC.AID_RID[aid_rid]
+        if aid_country in UICC.AID_country_code.keys(): 
+            aid_country = UICC.AID_country_code[aid_country]
+        
+        return('%s || %s || %s || %s || %s' \
+            % (aid_rid, aid_app, aid_country, aid_provider, tuple(aid[11:])))
     
     def get_ICCID(self):
         '''
@@ -1423,29 +1573,27 @@ class UICC(ISO7816):
         and returnq the ASCII value of the ICCID        
         '''
         #go back to MF and select EF_ICCID
-        #self.select(Data=[])
+        #self.select(addr=[])
         
         # EF_ICCID is at the MF level and contains Application ID:
-        EF_ICCID = self.select([0x2F, 0xE2], typ='pmf')
-        if self.dbg: 
-            print '[DBG] EF_ICCID: %s' % EF_ICCID
+        EF_ICCID = self.select([0x2F, 0xE2], type='pmf')
+        if self.dbg >= 3: 
+            log(3, '(get_ICCID) EF_ICCID: %s' % EF_ICCID)
         if EF_ICCID is None: 
             return None
         return decode_BCD( EF_ICCID['Data'] )
     
-    def select_by_name(self, name=''):
+    def select_by_name(self, name=[]):
         '''
-        AID selection by name taken from UICC.files
+        AID selection by name: should be AID bytes
         '''
-        for i in range(len(self.files)):
-            if name == self.files[i][2]:
-                return self.select( self.files[i][0], 'pmf' )
+        return self.select(name, 'aid')
     
     def select_by_aid(self, aid_num=1):
         '''
         AID selection by index
         '''
-        if len(self.AID) != 0:
+        if hasattr(self, 'AID') and aid_num <= len(self.AID)+1:
             return self.select(self.AID[aid_num-1], 'aid')
     
 
