@@ -14,6 +14,9 @@ SIM cards are easy to read as they are only mono-application: check 3GPP TS 11.1
 USIM cards are some more evolved as they are multi-applications / multi-channels cards: 
 check ETSI TS 101.221 and 3GPP TS 31.101 and 31.102
 
+For any specific question or support need, send me an email:
+michau (dot) benoit (at) gmail (dot) com
+
 ############
 # card lib #
 ############
@@ -21,35 +24,43 @@ check ETSI TS 101.221 and 3GPP TS 31.101 and 31.102
 # /card/* directory
 #
 
-this is a new version, build from the older iso7816.py monolithic script, to request mainly SIM and USIM cards.
-It needs python 2.6 (may work on older version: not tested), a smartcard reader (USB or RS-232), 
-pcsc-lite driver and daemon and its python binding pyscard.
+This is a new version, build from the older iso7816.py monolithic script, to request mainly SIM and USIM cards.
+It needs python 2.6 (may work with older version: not tested), a smartcard reader (USB or RS-232), 
+pcsc-lite driver and daemon under Linux (or the Windows' native smartcard service),
+and the smartcard pcsc python binding (called pyscard): http://pyscard.sourceforge.net/.
 
-The library is now splitted in several files:
+The library is splitted in several files:
 - utils.py: contains facilities for parsing TV, TLV, BER_TLV records and some other little functions used by others modules
-- ICC.py: contains the 2 main classes: 
-    - ISO7816: which implements a little part of the ISO standard
-    - UICC: which implements part of the ETSI standard inheriting from the ISO7816 class
-- SIM.py: contains the class SIM inheriting from ISO7816 class, implementing part of TS 51.011
-- USIM.py: contains the class USIM inheriting from UICC class, implementing part of TS 31.102
+- ICC.py: contains the 2 main classes:
+    - ISO7816: which implements a little part of the ISO7816 (mainly part 4) standard
+    - UICC: which implements part of the ETSI standard, and inherits from the ISO7816 class
+- SIM.py: contains the SIM class inheriting from the ISO7816 class, implementing part of TS 51.011
+- USIM.py: contains the USIM class inheriting from the UICC class, implementing part of TS 31.102
 - FS.py: dictionnaries refencing SIM and USIM files address as described in those 3GPP standards
 
-All file addresses and data syntax are list of short integer (e.g. [0xAA, 0xBB, 0xCC, ...]), as used by pyscard.
-Mistakes remains surely still in these scripts, so use it with care.
+All file addresses and data syntax are lists of short integer (e.g. [0xAA, 0xBB, 0xCC, ...]), as used by pyscard.
+It is possible to convert such data with byteToString() / stringToByte() functions from pyscard.
+Mistakes remains surely still in my scripts, so use it with care.
 UICC and USIM classes do not implement logical channels.
-ISO7816 and UICC security conditions parsing is really not well implemented.
+ISO7816 and UICC security conditions parsing is really not well implemented, yet.
+(I tried to work on the best way to deal with reference to EF_ARR, without real success until now).
 
-SIM and USIM classes have a .explore_fs() method.
-This allows to scan the ICC file-system from MF or AIDs recursively (enter DF each time one is found).
-It gets file manament parameters, and file content if access right is granted,
-and put every thing into a text file.
-Those methods are based on the .explore_DF() method from an ICC instance, 
-which recursively enters all DF until there no more is found.
-This last method build a dictionary of the filesystem within .FS attribute of ICC the instance.
-When proceeding from the MF, it can take several hours as the scaning process bruteforce all file addresses.
-The function make_graph() from the utils part make a .dot file for graphing the filesystem.
-So with those functions, it is easy to obtain SIM / USIM filesystem content and graphical representation, 
+# Update (sept. 2012):
+SIM and USIM classes have a working `.explore_fs()` method.
+It allows to scan the ICC file-system recursively, starting from MF or AIDs (enter DF each time one is found).
+It gets file management parameters, and file content if access right is granted, and write everything into a text file.
+Those methods are based on the `.explore_DF()` method from an ICC instance, which recursively enters all DF until no more is found.
+This last method build a dictionary of the filesystem within `.FS` attribute of the ICC instance.
+When proceeding from the MF, it can take several hours as the scanning process bruteforce all 2-byte file addresses.
+
+The function `make_graph()` from the utils part make a .dot file for graphing the filesystem
+(from the resulting `.FS` dictionnary).
+This requires the pydot module: http://code.google.com/p/pydot/.
+
+With those functions, it is easy to obtain SIM / USIM filesystem content and graphical representation, 
 including all non standard files that are linked from the MF or AID root file.
+You can see an example taken from a sysmo-USIM (unprovisioned) card here:
+http://michau.benoit.free.fr/codes/smartcard/sysmoUSIM/
 
 
 #####################
