@@ -30,6 +30,64 @@ from card.ICC import ISO7816
 from card.FS import SIM_FS, MF_FS
 from card.utils import *
 
+SIM_service_table = {
+    1 : "CHV1 disable function",
+    2 : "Abbreviated Dialling Numbers (ADN)",
+    3  : "Fixed Dialling Numbers (FDN)",
+    4  : "Short Message Storage (SMS)",
+    5  : "Advice of Charge (AoC)",
+    6  : "Capability Configuration Parameters (CCP)",
+    7  : "PLMN selector",
+    8  : "RFU",
+    9  : "MSISDN",
+    10 : "Extension1",
+    11 : "Extension2",
+    12 : "SMS Parameters",
+    13 : "Last Number Dialled (LND)",
+    14 : "Cell Broadcast Message Identifier",
+    15 : "Group Identifier Level 1",
+    16 : "Group Identifier Level 2",
+    17 : "Service Provider Name",
+    18 : "Service Dialling Numbers (SDN)",
+    19 : "Extension3",
+    20 : "RFU",
+    21 : "VGCS Group Identifier List (EFVGCS and EFVGCSS)",
+    22 : "VBS Group Identifier List (EFVBS and EFVBSS)",
+    23 : "enhanced Multi-Level Precedence and Pre-emption Service",
+    24 : "Automatic Answer for eMLPP",
+    25 : "Data download via SMS-CB",
+    26 : "Data download via SMS-PP",
+    27 : "Menu selection",
+    28 : "Call control",
+    29 : "Proactive SIM",
+    30 : "Cell Broadcast Message Identifier Ranges",
+    31 : "Barred Dialling Numbers (BDN)",
+    32 : "Extension4",
+    33 : "De-personalization Control Keys",
+    34 : "Co-operative Network List",
+    35 : "Short Message Status Reports",
+    36 : "Network's indication of alerting in the MS ",
+    37 : "Mobile Originated Short Message control by SIM ",
+    38 : "GPRS",
+    39 : "Image (IMG)",
+    40 : "SoLSA (Support of Local Service Area)",
+    41 : "USSD string data object supported in Call Control",
+    42 : "RUN AT COMMAND command",
+    43 : "User controlled PLMN Selector with Access Technology",
+    44 : "Operator controlled PLMN Selector with Access Technology",
+    45 : "HPLMN Selector with Access Technology",
+    46 : "CPBCCH Information",
+    47 : "Investigation Scan",
+    48 : "Extended Capability Configuration Parameters",
+    49 : "MExE",
+    50 : "RPLMN last used Access Technology",
+    51 : "PLMN Network Name",
+    52 : "Operator PLMN List",
+    53 : "Mailbox Dialling Numbers ",
+    54 : "Message Waiting Indication Status",
+    55 : "Call Forwarding Indication Status",
+    56 : "Service Provider Display Information",
+    }
 
 class SIM(ISO7816):
     '''
@@ -272,6 +330,52 @@ class SIM(ISO7816):
         if self.dbg >= 2: 
             log(3, '(get_imsi) %s' % self.coms())
         return None
+    
+    def get_services(self):
+        '''
+        self.get_imsi() -> None
+        
+        reads SIM Service Table at address [0x6F, 0x38]
+        prints services allowed / activated
+        returns None
+        '''
+        # select DF_GSM for SIM card
+        self.select([0x7F, 0x20])
+        if self.coms()[2] != (0x90, 0x00): 
+            if self.dbg >= 2: 
+                log(3, '(get_services) %s' % self.coms())
+            return None
+        
+        # select SST file
+        sst = self.select([0x6F, 0x38])
+        if self.coms()[2] != (0x90, 0x00): 
+            if self.dbg >= 2: 
+                log(3, '(get_services) %s' % self.coms())
+            return None
+        
+        # parse data and prints corresponding services
+        if 'Data' in sst.keys() and len(sst['Data']) >= 2:
+            return self.get_services_from_sst(sst['Data'])
+    
+    def read_services(self):
+        serv = self.get_services()
+        for s in serv:
+            print s
+    
+    def get_services_from_sst(self, sst=[0, 0]):
+        services = []
+        cnt = 0
+        for B in sst:
+            # 2 bits per service -> 4 services per byte
+            for i in range(0, 7, 2):
+                cnt += 1
+                if B & 2**i:
+                    info = 'allocated'
+                    if B & (2**i+1):
+                        info += ' | activated'
+                    services.append('%i : %s : %s' \
+                                    % (cnt, SIM_service_table[cnt], info))
+        return services
     
     def explore_fs(self, filename='sim_fs', emul=False):
         '''

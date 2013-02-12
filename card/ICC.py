@@ -80,6 +80,7 @@ class ISO7816(object):
         0x70 : 'MANAGE CHANNEL',
         0x73 : 'MANAGE SECURE CHANNEL',
         0x75 : 'TRANSACT DATA',
+        0x82 : 'EXTERNAL AUTHENTICATE',
         0x84 : 'GET CHALLENGE',
         0x86 : 'GENERAL AUTHENTICATE',
         0x87 : 'GENERAL AUTHENTICATE',
@@ -648,18 +649,17 @@ class ISO7816(object):
         DISABLE_CHV = [self.CLA, 0x26, P1, P2, len(Data)] + Data
         return self.sr_apdu(DISABLE_CHV)
     
-    def UNBLOCK_CHV(self, P2=0x00, Lc=None, Data=[]):
+    def UNBLOCK_CHV(self, P2=0x00, Data=[]):
         '''
         APDU command to unblock CHV code (e.g. with PUK for deblocking PIN)
         
         P2: type of CHV to unblock
         Lc: Empty or 0x10
-        Data: if Lc=0x10, UNBLOCK_CHV value and new CHV value to set
+        Data: if Lc=0x10, UNBLOCK_CHV (PUK) value and new CHV (PIN) values,
+              each are 8 digits
         call sr_apdu method
-        
-        TODO: check the exact coding for the Data
         '''
-        if Lc is None: 
+        if len(Data) != 16:
             UNBLOCK_CHV = [self.CLA, 0x2C, 0x00, P2]
         else: 
             UNBLOCK_CHV = [self.CLA, 0x2C, 0x00, P2, 0x10] + Data

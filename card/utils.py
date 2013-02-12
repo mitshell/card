@@ -252,7 +252,7 @@ def write_dict(dict, fd):
         rec = dict[k]
         if isinstance(rec, list) and \
         len(rec) == [isinstance(i, int) for i in rec].count(True):
-            rec = ''.join(['[', ' '.join(map(hex, rec)), ']'])
+            rec = ''.join(['[', ', '.join(map(hex, rec)), ']'])
         fd.write('%s: %s\n' % (k, rec))
 
 def make_graph(FS, master_name='(0x3F, 0x00)\nMF'):

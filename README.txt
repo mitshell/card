@@ -9,7 +9,7 @@ The principle is to communicate with the card over a serial link, sending APDU c
 and receiving replies with always SW codes and sometimes data.
 
 All the SIM and USIM cards are based on these standards, and in addition, on ETSI and 3GPP standards.
-ETSI standards are not public, 3GPP standards are (http://www.3gpp.org/specification-numbering).
+ETSI standards are public (see http://www.etsi.org/deliver/etsi_ts/), 3GPP standards are too (see http://www.3gpp.org/specification-numbering).
 SIM cards are easy to read as they are only mono-application: check 3GPP TS 11.11 or TS 51.011
 USIM cards are some more evolved as they are multi-applications / multi-channels cards: 
 check ETSI TS 101.221 and 3GPP TS 31.101 and 31.102
