@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 """
 card: Library adapted to request (U)SIM cards and other types of telco cards.
 Copyright (C) 2010 Benoit Michau
@@ -33,6 +34,105 @@ from card.SIM import SIM
 from card.FS import USIM_app_FS
 from card.utils import *
 
+USIM_service_table = {
+    1 : 'Local Phone Book',
+    2 : 'Fixed Dialling Numbers (FDN)',
+    3 : 'Extension 2',
+    4 : 'Service Dialling Numbers (SDN)',
+    5 : 'Extension3',
+    6 : 'Barred Dialling Numbers (BDN)',
+    7 : 'Extension4',
+    8 : 'Outgoing Call Information (OCI and OCT)',
+    9 : 'Incoming Call Information (ICI and ICT)',
+    10 : 'Short Message Storage (SMS)',
+    11 : 'Short Message Status Reports (SMSR)',
+    12 : 'Short Message Service Parameters (SMSP)',
+    13 : 'Advice of Charge (AoC)',
+    14 : 'Capability Configuration Parameters 2 (CCP2)',
+    15 : 'Cell Broadcast Message Identifier ',
+    16 : 'Cell Broadcast Message Identifier Ranges ',
+    17 : 'Group Identifier Level 1',
+    18 : 'Group Identifier Level 2',
+    19 : 'Service Provider Name',
+    20 : 'User controlled PLMN selector with Access Technology',
+    21 : 'MSISDN',
+    22 : 'Image (IMG)',
+    23 : 'Support of Localised Service Areas (SoLSA) ',
+    24 : 'Enhanced Multi-Level Precedence and Pre-emption Service',
+    25 : 'Automatic Answer for eMLPP',
+    26 : 'RFU',
+    27 : 'GSM Access',
+    28 : 'Data download via SMS-PP',
+    29 : 'Data download via SMS-CB',
+    30 : 'Call Control by USIM',
+    31 : 'MO-SMS Control by USIM',
+    32 : 'RUN AT COMMAND command',
+    33 : 'shall be set to \'1\'',
+    34 : 'Enabled Services Table',
+    35 : 'APN Control List (ACL)',
+    36 : 'Depersonalisation Control Keys',
+    37 : 'Co-operative Network List',
+    38 : 'GSM security context ',
+    39 : 'CPBCCH Information',
+    40 : 'Investigation Scan',
+    41 : 'MexE',
+    42 : 'Operator controlled PLMN selector with Access Technology',
+    43 : 'HPLMN selector with Access Technology',
+    44 : 'Extension 5',
+    45 : 'PLMN Network Name',
+    46 : 'Operator PLMN List',
+    47 : 'Mailbox Dialling Numbers ',
+    48 : 'Message Waiting Indication Status',
+    49 : 'Call Forwarding Indication Status',
+    50 : 'Reserved and shall be ignored',
+    51 : 'Service Provider Display Information',
+    52 : 'Multimedia Messaging Service (MMS)',
+    53 : 'Extension 8',
+    54 : 'Call control on GPRS by USIM',
+    55 : 'MMS User Connectivity Parameters',
+    56 : 'Network\'s indication of alerting in the MS (NIA)',
+    57 : 'VGCS Group Identifier List (EFVGCS and EFVGCSS)',
+    58 : 'VBS Group Identifier List (EFVBS and EFVBSS)',
+    59 : 'Pseudonym',
+    60 : 'User Controlled PLMN selector for I-WLAN access',
+    61 : 'Operator Controlled PLMN selector for I-WLAN access',
+    62 : 'User controlled WSID list',
+    63 : 'Operator controlled WSID list',
+    64 : 'VGCS security',
+    65 : 'VBS security',
+    66 : 'WLAN Reauthentication Identity',
+    67 : 'Multimedia Messages Storage',
+    68 : 'Generic Bootstrapping Architecture (GBA)',
+    69 : 'MBMS security',
+    70 : 'Data download via USSD and USSD application mode',
+    71 : 'Equivalent HPLMN',
+    72 : 'Additional TERMINAL PROFILE after UICC activation',
+    73 : 'Equivalent HPLMN Presentation Indication',
+    74 : 'Last RPLMN Selection Indication',
+    75 : 'OMA BCAST Smart Card Profile',
+    76 : 'GBA-based Local Key Establishment Mechanism',
+    77 : 'Terminal Applications',
+    78 : 'Service Provider Name Icon',
+    79 : 'PLMN Network Name Icon',
+    80 : 'Connectivity Parameters for USIM IP connections',
+    81 : 'Home I-WLAN Specific Identifier List',
+    82 : 'I-WLAN Equivalent HPLMN Presentation Indication',
+    83 : 'I-WLAN HPLMN Priority Indication',
+    84 : 'I-WLAN Last Registered PLMN',
+    85 : 'EPS Mobility Management Information',
+    86 : 'Allowed CSG Lists and corresponding indications',
+    87 : 'Call control on EPS PDN connection by USIM',
+    88 : 'HPLMN Direct Access',
+    89 : 'eCall Data',
+    90 : 'Operator CSG Lists and corresponding indications',
+    91 : 'Support for SM-over-IP',
+    92 : 'Support of CSG Display Control',
+    93 : 'Communication Control for IMS by USIM',
+    94 : 'Extended Terminal Applications',
+    95 : 'Support of UICC access to IMS',
+    96 : 'Non-Access Stratum configuration by USIM',
+    97 : 'PWS configuration by USIM',
+    }
 
 class USIM(UICC):
     '''
@@ -366,17 +466,57 @@ class USIM(UICC):
             log(3, '(GBA_derivation) authentication failure: %s' % self.coms())
         return None
     
-    def explore_fs(self, filename='usim_fs', max_recu=2):
+    def get_services(self):
+        '''
+        self.get_services() -> None
+        
+        reads USIM Service Table at address [0x6F, 0x38]
+        prints services allowed / activated
+        returns None
+        '''
+        # select SST file
+        sst = self.select([0x6F, 0x38])
+        if self.coms()[2] != (0x90, 0x00): 
+            if self.dbg >= 2: 
+                log(3, '(get_services) %s' % self.coms())
+            return None
+        
+        # parse data and prints corresponding services
+        if 'Data' in sst.keys() and len(sst['Data']) >= 2:
+            return self.get_services_from_sst(sst['Data'])
+    
+    def read_services(self):
+        serv = self.get_services()
+        for s in serv:
+            print s
+    
+    def get_services_from_sst(self, sst=[0, 0]):
+        services = []
+        cnt = 0
+        for B in sst:
+            # 1 bit per service -> 8 services per byte
+            for i in range(0, 8):
+                cnt += 1
+                if B & 2**i:
+                    if cnt in USIM_service_table:
+                        services.append('%i : %s : available' \
+                                        % (cnt, USIM_service_table[cnt]))
+                    else:
+                        services.append('%i : available' % cnt)
+        return services
+    
+    def explore_fs(self, filename='usim_fs', depth=2):
         '''
         self.explore_fs(self, filename='usim_fs') -> void
             filename: file to write in information found
+            depth: depth in recursivity, True=infinite
         
         brute force all file addresses from 1st USIM AID
         with a maximum recursion level (to avoid infinite looping...)
         write information on existing DF and file in the output file
         '''
         usimfs_entries = USIM_app_FS.keys()
-        self.explore_DF([], self.AID.index(self.USIM_AID)+1, max_recu)
+        self.explore_DF([], self.AID.index(self.USIM_AID)+1, depth)
         
         fd = open(filename, 'w')
         fd.write('\n### AID %s ###\n' % self.USIM_AID)

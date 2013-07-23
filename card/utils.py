@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 """
 card: Library adapted to request (U)SIM cards and other types of telco cards.
 Copyright (C) 2010 Benoit Michau

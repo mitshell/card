@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 """
 card: Library adapted to request (U)SIM cards and other types of telco cards.
 Copyright (C) 2010 Benoit Michau
@@ -91,6 +92,7 @@ class ISO7816(object):
         0xA1 : 'SEARCH BINARY',
         0xA2 : 'SEARCH RECORD',
         0xA4 : 'SELECT FILE',
+        0xA8 : 'GET PROCESSING OPTIONS',
         0xAA : 'TERMINAL CAPABILITY',
         0xB0 : 'READ BINARY',
         0xB1 : 'READ BINARY',
@@ -610,7 +612,7 @@ class ISO7816(object):
         GET_RESPONSE = [self.CLA, 0xC0, 0x00, 0x00, Le]
         return self.sr_apdu(GET_RESPONSE)
     
-    def ENVELOPPE(self, Data=[]):
+    def ENVELOPE(self, Data=[]):
         '''
         APDU command to encapsulate data (APDU or other...)
         check ETSI TS 102.221 for some examples...
@@ -619,10 +621,10 @@ class ISO7816(object):
         call sr_apdu method
         '''
         if len(Data) == 0: 
-            ENVELOPPE = [self.CLA, 0xC2, 0x00, 0x00]
+            ENVELOPE = [self.CLA, 0xC2, 0x00, 0x00]
         elif 1 <= len(Data) <= 255: 
-            ENVELOPPE = [self.CLA, 0xC2, 0x00, 0x00, len(Data)] + Data
-        return self.sr_apdu(ENVELOPPE)
+            ENVELOPE = [self.CLA, 0xC2, 0x00, 0x00, len(Data)] + Data
+        return self.sr_apdu(ENVELOPE)
     
     def SEARCH_RECORD(self, P1=0x00, P2=0x00, Data=[]):
         '''
@@ -648,6 +650,18 @@ class ISO7816(object):
         '''
         DISABLE_CHV = [self.CLA, 0x26, P1, P2, len(Data)] + Data
         return self.sr_apdu(DISABLE_CHV)
+    
+    def ENABLE_CHV(self, P1=0x00, P2=0x00, Data=[]):
+        '''
+        APDU command to enable CHV verification (such as PIN or password...)
+        
+        P1: let to 0x00... or read ISO and ETSI specifications
+        P2: type of CHV to enable
+        Data: list of bytes for CHV value
+        call sr_apdu method
+        '''
+        ENABLE_CHV = [self.CLA, 0x28, P1, P2, len(Data)] + Data
+        return self.sr_apdu(ENABLE_CHV)
     
     def UNBLOCK_CHV(self, P2=0x00, Data=[]):
         '''
@@ -692,6 +706,13 @@ class ISO7816(object):
             fil['Control'] = 'FCP'
             return fil
         
+        # for FCI control structure, also trying to parse precisely
+        # this structure is used mainly in EMV cards
+        elif ber[0][0][2] == 0x10:
+            fil = self.parse_FCI( ber[0][2] )
+            fil['Control'] = 'FCI'
+            return fil
+        
         # for other control structure, DIY
         fil = {}
         if ber[0][0][2] == 0x4: 
@@ -699,10 +720,10 @@ class ISO7816(object):
             if self.dbg:
                 log(1, '(parse_file) FMD file structure parsing ' \
                     'not implemented')
-        elif ber[0][0][2] == 0xF: 
+        elif ber[0][0][2] == 0xF:
             fil['Control'] = 'FCI'
             if self.dbg:
-                log(1, '(parse_file) FCI file structure parsing '
+                log(1, '(parse_file) FCI 0xF file structure parsing '
                     'not implemented')
         else: 
             fil['Control'] = ber[0][0]
@@ -1000,7 +1021,86 @@ class ISO7816(object):
         # See ISO-IEC 7816-4 section 5.4.3, with compact and expanded format
         # not implemented yet (looks like useless for (U)SIM card ?)
         return fil
+    
+    def parse_FCI(self, Data=[]):
+        '''
+        parse_FCI(Data) -> Dict()
         
+        parses a list of bytes returned when selecting a file
+        interprets the content of some informative bytes 
+        for file structure and parsing method...
+        '''
+        fil = {}
+        # loop on the Data bytes to parse TLV'style attributes
+        toProcess = Data
+        while len(toProcess) > 0:
+            # TODO: seemd full compliancy 
+            # would require to work with the BERTLV parser...
+            [T, L, V] = first_TLV_parser(toProcess)
+            if self.dbg >= 3:
+                if T in self.file_tags.keys(): 
+                    Tag = self.file_tags[T]
+                else: 
+                    Tag = T
+                log(3, '(parse_FCI) Tag value %s / type %s: %s' % (T, Tag, V))
+            
+            # application template
+            if T == 0x61:
+                fil['Application Template'] = V
+            
+            
+            
+            # do extra processing here
+            # File ID, DF name, Short file id
+            elif T in (0x83, 0x84, 0x88):
+                fil[self.file_tags[T]] = V
+            # Security Attributes compact format
+            elif T == 0x8C:
+                fil[self.file_tags[T]] = V
+                fil = self.parse_compact_security_attribute(V, fil)
+            # Security Attributes ref to expanded
+            elif T == 0x8B:
+                fil[self.file_tags[T]] = V 
+                fil = self.parse_expanded_security_attribute(V, fil)
+            # other security attributes... not implemented
+            elif T in (0x86, 0x8E, 0xA0, 0xA1, 0xAB):
+                fil[self.file_tags[T]] = V 
+                # TODO: no concrete parsing at this time...
+                if self.dbg:
+                    log(2, '(parse_FCP) parsing security attributes not ' \
+                        'implemented for tag 0x%X' % T)
+                fil = self.parse_security_attribute(V, fil)
+            # file size or length
+            elif T in (0x80, 0x81):
+                fil[self.file_tags[T]] = sum( [ V[i] * pow(0x100, len(V)-i-1) \
+                                               for i in range(len(V)) ] )
+            # file descriptor, deducting file access, type and structure
+            elif T == 0x82:
+                assert( L in (2, 5) )
+                fil[self.file_tags[T]] = V
+                fil = self.parse_file_descriptor(V, fil)
+            # life cycle status
+            elif T == 0x8A:
+                fil = self.parse_life_cycle(V, fil)
+            # proprietary information
+            elif T == 0xA5:
+                fil = self.parse_proprietary(V, fil)
+            else:
+                if T in self.file_tags.keys():
+                    fil[self.file_tags[T]] = V
+                else:
+                    fil[T] = V
+            
+            # truncate the data to process and loop
+            if L < 256:
+                toProcess = toProcess[L+2:]
+            else:
+                toProcess = toProcess[L+4:]
+        
+        # and return the file 
+        return fil
+    
+    
     def read_EF(self, fil):
         '''
         interprets the content of file parameters (Structure, Size, Length...)
@@ -1343,7 +1443,7 @@ class UICC(ISO7816):
         (0xA0, 0x00, 0x00, 0x04, 0x12): 'OMA',
         (0xA0, 0x00, 0x00, 0x04, 0x24): 'WiMAX',
         }
-    ETSI_AID_app_code = {
+    AID_ETSI_app_code = {
         (0x00, 0x00): 'Reserved',
         (0x00, 0x01): 'GSM',
         (0x00, 0x02): 'GSM SIM Toolkit',
@@ -1352,7 +1452,7 @@ class UICC(ISO7816):
         (0x00, 0x05): 'UICC API for JavaCard',
         (0x01, 0x01): 'DVB CBMS KMS',
         }
-    GPP_AID_app_code = {
+    AID_3GPP_app_code = {
         (0x10, 0x01): 'UICC',
         (0x10, 0x02): 'USIM',
         (0x10, 0x03): 'USIM Toolkit',
@@ -1361,7 +1461,7 @@ class UICC(ISO7816):
         (0x10, 0x06): 'ISIM API for JavaCard',
         (0x10, 0x05): 'Contact Manager API for JavaCard',
         }
-    GPP2_AID_app_code = {
+    AID_3GPP2_app_code = {
         (0x10, 0x02): 'CSIM',
         }
     AID_country_code = {
@@ -1427,9 +1527,7 @@ class UICC(ISO7816):
     def __init__(self):
         '''
         initializes like an ISO7816-4 card with CLA=0x00
-        and check available AID (Application ID) read from EF_DIR
-        
-        initializes on the MF
+        initialized on the MF
         '''
         ISO7816.__init__(self, CLA=0x00)
         self.AID = []
@@ -1527,7 +1625,7 @@ class UICC(ISO7816):
         if self.dbg >= 3: 
             log(3, '(get_AID) EF_DIR: %s' % EF_DIR)
         if EF_DIR is None: 
-            return None
+            return
         
         # EF_DIR is an EF with linear fixed structure: contains records:
         for rec in EF_DIR['Data']:
@@ -1536,11 +1634,14 @@ class UICC(ISO7816):
             and rec[4:4+rec[3]] not in self.AID:
                 self.AID.append( rec[4:4+rec[3]] )
         
-        for aid in self.AID:
-            self.interpret_AID(aid)
+        #for aid in self.AID:
+        #    self.interpret_AID(aid)
     
     @staticmethod
     def interpret_AID(aid=[]):
+        '''
+        interprets and prints the aid provided
+        '''
         if len(aid) < 11:
             return
         # check AID format
@@ -1551,16 +1652,17 @@ class UICC(ISO7816):
         
         # get AID application code, depending on SDO...
         if aid_rid == (0xA0, 0x00, 0x00, 0x00, 0x09) \
-        and aid_app in UICC.ETSI_AID_app_code.keys(): 
-            aid_app = UICC.ETSI_AID_app_code[aid_app]
+        and aid_app in UICC.AID_ETSI_app_code.keys(): 
+            aid_app = UICC.AID_ETSI_app_code[aid_app]
         if aid_rid == (0xA0, 0x00, 0x00, 0x00, 0x87) \
-        and aid_app in UICC.GPP_AID_app_code.keys(): 
-            aid_app = UICC.GPP_AID_app_code[aid_app]
+        and aid_app in UICC.AID_3GPP_app_code.keys(): 
+            aid_app = UICC.AID_3GPP_app_code[aid_app]
         if aid_rid == (0xA0, 0x00, 0x00, 0x03, 0x43) \
-        and aid_app in UICC.GPP2_AID_app_code.keys(): 
-            aid_app = UICC.GPP2_AID_app_code[aid_app]
+        and aid_app in UICC.AID_3GPP2_app_code.keys(): 
+            aid_app = UICC.AID_3GPP2_app_code[aid_app]
         # get AID responsible SDO and country
-        if aid_rid in UICC.AID_RID.keys(): aid_rid = UICC.AID_RID[aid_rid]
+        if aid_rid in UICC.AID_RID.keys():
+            aid_rid = UICC.AID_RID[aid_rid]
         if aid_country in UICC.AID_country_code.keys(): 
             aid_country = UICC.AID_country_code[aid_country]
         
@@ -1595,6 +1697,4 @@ class UICC(ISO7816):
         '''
         if hasattr(self, 'AID') and aid_num <= len(self.AID)+1:
             return self.select(self.AID[aid_num-1], 'aid')
-    
-
 

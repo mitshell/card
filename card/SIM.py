@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 """
 card: Library adapted to request (U)SIM cards and other types of telco cards.
 Copyright (C) 2010 Benoit Michau
@@ -184,6 +185,19 @@ class SIM(ISO7816):
             if self.dbg: 
                 log(2, '(disable_pin) bad input parameters')
     
+    def enable_pin(self, pin='', pin_type=1):
+        '''
+        enable CHV1 (PIN code) or CHV2 with ENABLE_CHV APDU command
+        call ISO7816 ENABLE method
+        '''
+        if pin_type in [1, 2] and type(pin) is str and \
+        len(pin) == 4 and 0 <= int(pin) < 10000:
+            PIN = [ord(i) for i in pin] + [0xFF, 0xFF, 0xFF, 0xFF]
+            self.coms.push( self.ENABLE_CHV(P2=pin_type, Data=PIN) )
+        else:
+            if self.dbg: 
+                log(2, '(enable_pin) bad input parameters')
+    
     def unblock_pin(self, pin_type=1, unblock_pin=''):
         '''
         WARNING: not correctly implemented!!!
@@ -333,11 +347,10 @@ class SIM(ISO7816):
     
     def get_services(self):
         '''
-        self.get_imsi() -> None
+        self.get_services() -> None
         
         reads SIM Service Table at address [0x6F, 0x38]
-        prints services allowed / activated
-        returns None
+        returns list of services allowed / activated
         '''
         # select DF_GSM for SIM card
         self.select([0x7F, 0x20])
@@ -358,6 +371,13 @@ class SIM(ISO7816):
             return self.get_services_from_sst(sst['Data'])
     
     def read_services(self):
+        '''
+        self.read_services() -> None
+        
+        reads SIM Service Table at address [0x6F, 0x38]
+        prints services allowed / activated
+        returns None
+        '''
         serv = self.get_services()
         for s in serv:
             print s
@@ -373,14 +393,18 @@ class SIM(ISO7816):
                     info = 'allocated'
                     if B & (2**i+1):
                         info += ' | activated'
-                    services.append('%i : %s : %s' \
+                    if cnt in SIM_service_table:
+                        services.append('%i : %s : %s' \
                                     % (cnt, SIM_service_table[cnt], info))
+                    else:
+                        services.append('%i : %s' % (cnt, info))
         return services
     
-    def explore_fs(self, filename='sim_fs', emul=False):
+    def explore_fs(self, filename='sim_fs', depth=True, emul=False):
         '''
         self.explore_fs(self, filename='sim_fs') -> void
             filename: file to write in information found
+            depth: depth in recursivity, True=infinite
         
         brute force all file addresses from MF recursively 
         (until no more DF are found)
@@ -388,7 +412,7 @@ class SIM(ISO7816):
         '''
         simfs_entries = MF_FS.keys()
         if not emul:
-            self.explore_DF([], None, True)
+            self.explore_DF([], None, depth)
         
         fd = open(filename, 'w')
         fd.write('\n### MF ###\n')
@@ -405,3 +429,28 @@ class SIM(ISO7816):
         
         fd.close()
     
+    def get_ICCID(self):
+        # select MF
+        self.select([0x3F, 0x0])
+        if self.coms()[2] != (0x90, 0x00): 
+            if self.dbg >= 2: 
+                log(3, '(get_ICCID) %s' % self.coms())
+            return None
+        
+        # select IMSI file
+        iccid = self.select([0x2F, 0xE2])
+        if self.coms()[2] != (0x90, 0x00): 
+            if self.dbg >= 2: 
+                log(3, '(get_ICCID) %s' % self.coms())
+            return None
+        
+        # and parse the received data into the IMSI structure
+        if 'Data' in iccid.keys() and len(iccid['Data']) >= 10:
+            return decode_BCD(iccid['Data'])
+        
+        # if issue with the content of the ICCID file
+        if self.dbg >= 2: 
+            log(3, '(get_ICCID) %s' % self.coms())
+        return None
+
+

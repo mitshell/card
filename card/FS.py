@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 """
 card: Library adapted to request (U)SIM cards and other types of telco cards.
 Copyright (C) 2010 Benoit Michau
@@ -451,12 +452,4 @@ DF_MULTIMEDIA = {
 (0x5F, 0x3B) : 'DF_MULTIMEDIA',
 (0x5F, 0x3B, 0x4F, 0x47) : 'EF_MML',
 (0x5F, 0x3B, 0x4F, 0x48) : 'EF_MMDF',
-}
-
-# And this is to test Credit Cards...
-EMV_AID = {
-(160, 0, 0, 0, 3, 16, 16) : 'VISA credit / debit',
-(160, 0, 0, 0, 66, 16, 16) : 'CB EMC',
-(160, 0, 0, 0, 4, 48, 96) : 'MAESTRO',
-
 }

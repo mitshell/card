@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 """
 card: Library adapted to request (U)SIM cards and other types of telco cards.
 Copyright (C) 2010 Benoit Michau
@@ -18,10 +19,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 """
 
 # smartcard Integrated Circuit Card library
-# based on Laurent Rousseau pcsclite daemon and Jean-Daniel Aussel pyscard binding
+# based on Laurent Rousseau pcsclite daemon or Microsoft scard service
+# and Jean-Daniel Aussel pyscard (magical) python binding
 # specificities of SIM and USIM card available
 
-
-__all__ = ['utils', 'ICC', 'SIM', 'USIM', 'FS']
-__version__ = '0.1.0'
-
+__all__ = ['utils', 'ICC', 'SIM', 'USIM', 'FS', 'EMV']
+__version__ = '0.2.0'
