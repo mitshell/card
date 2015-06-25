@@ -173,14 +173,11 @@ def first_BERTLV_parser(bytelist):
     for j in range(len(Tag_bits)):
         Tag_num += Tag_bits[len(Tag_bits)-j-1] * pow(2, j)
     
-    # Length coded with more than 1 byte
-    if bytelist[i+1] > 0x50:
-        Len_num = bytelist[i+1] - 0x50
-        Len_bytes = bytelist[i+2:i+1+Len_num]
-        Len = 0
-        for j in range(len(Len_bytes)):
-            Len += bytelist[i+1+Len_num-j] * pow(256, j)
-        Val = bytelist[i+1+Len_num:i+1+Len_num+Len]
+    # Length coded with more than 1 byte (BER long form)
+    if bytelist[i+1] & 0x80:
+        Len_num = bytelist[i+1] - 0x80
+        Len = reduce(lambda x,y: (x<<8)+y, bytelist[i+2:i+2+Len_num])
+        Val = bytelist[i+2+Len_num:i+2+Len_num+Len]
     # Length coded with 1 byte
     else:
         Len_num = 1
