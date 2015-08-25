@@ -228,7 +228,7 @@ class personalize(object):
         self.ICCID      = ICCID_pre + serial_number
         self.ICCID     += str(compute_luhn(self.ICCID))
         self.IMSI       = IMSI_pre + serial_number
-        self.K          = K_pre + serial_number
+        self.K          = Ki_pre + serial_number
         self.Milenage   = Milenage(OP)
         self.OPc        = make_OPc(self.K, OP)
         # verify parameters
