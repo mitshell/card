@@ -327,5 +327,8 @@ class apdu_stack:
         '''
         calling the apdu_stack returns the last response pushed on it
         '''
-        return self.apdu_stack[-1]
+        try:
+            return self.apdu_stack[-1]
+        except IndexError:
+            return None
 
