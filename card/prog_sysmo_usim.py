@@ -17,11 +17,11 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 """
-################################
-# script to program sysmoUSIM  #
-# with fixed parameters        #
-# and a 3 digits serial number #
-################################
+####################################
+# script to program sysmoUSIM-GR1  #
+# with fixed parameters            #
+# and a 3 digits serial number     #
+####################################
 
 from card.ICC import *
 from card.SIM import SIM
