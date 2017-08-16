@@ -134,7 +134,7 @@ def program_vec(K=[], OPc=[], ICCID=[], IMSI=[]):
             c.disconnect()
             return 0
     print('[-] programmation failed\n%s' % c.coms())
-    print c.coms
+    print(c.coms)
     c.disconnect()
     return 1
 

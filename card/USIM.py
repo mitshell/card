@@ -488,7 +488,7 @@ class USIM(UICC):
     def read_services(self):
         serv = self.get_services()
         for s in serv:
-            print s
+            print(s)
     
     def get_services_from_sst(self, sst=[0, 0]):
         services = []
