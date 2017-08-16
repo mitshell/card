@@ -158,6 +158,9 @@ class USIM(UICC):
             log(3, '(UICC.__init__) type definition: %s' % type(self))
             log(3, '(UICC.__init__) CLA definition: %s' % hex(self.CLA))
         
+        self.SELECT_ADF_USIM()
+
+    def SELECT_ADF_USIM(self):
         # USIM selection from AID
         if self.dbg:
             log(3, '(USIM.__init__) UICC AID found:')
