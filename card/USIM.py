@@ -158,6 +158,9 @@ class USIM(UICC):
             log(3, '(UICC.__init__) type definition: %s' % type(self))
             log(3, '(UICC.__init__) CLA definition: %s' % hex(self.CLA))
         
+        self.SELECT_ADF_USIM()
+
+    def SELECT_ADF_USIM(self):
         # USIM selection from AID
         if self.dbg:
             log(3, '(USIM.__init__) UICC AID found:')
@@ -488,7 +491,7 @@ class USIM(UICC):
     def read_services(self):
         serv = self.get_services()
         for s in serv:
-            print s
+            print(s)
     
     def get_services_from_sst(self, sst=[0, 0]):
         services = []

@@ -1,4 +1,4 @@
-from distutils.core import setup
+from setuptools import setup
 
 setup(name="card",
       author="Benoit Michau",
@@ -8,4 +8,7 @@ setup(name="card",
       long_description=open("README.txt", "r").read(),
       version="0.1.0",
       license="GPLv2",
-      packages=["card"])
+      packages=["card"],
+      install_requires=[
+        'pyscard'
+      ])
