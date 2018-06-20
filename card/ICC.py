@@ -101,7 +101,7 @@ class ISO7816(object):
         0xC0 : 'GET RESPONSE',
         0xC2 : 'ENVELOPE',
         0xC3 : 'ENVELOPE',
-        0xCA : 'RETRIEVE DATA',
+        0xCA : 'GET DATA',
         0xCB : 'RETRIEVE DATA',
         0xD2 : 'WRITE RECORD',
         0xD6 : 'UPDATE BINARY',
@@ -1218,7 +1218,7 @@ class ISO7816(object):
         # take the parse_file() method from the instance:
         # ISO7816, UICC (for USIM) or SIM
         file = self.parse_file(data)
-        if file['Type'][0:2] == 'EF':
+        if 'Type' in file.keys() and file['Type'][0:2] == 'EF':
             file = self.read_EF(file)
         
         # finally returns the whole file dictionnary, 
@@ -1442,6 +1442,8 @@ class UICC(ISO7816):
         (0xA0, 0x00, 0x00, 0x03, 0x43): '3GPP2',
         (0xA0, 0x00, 0x00, 0x04, 0x12): 'OMA',
         (0xA0, 0x00, 0x00, 0x04, 0x24): 'WiMAX',
+        (0xA0, 0x00, 0x00, 0x00, 0x03): 'GlobalPlatform',
+        (0xA0, 0x00, 0x00, 0x01, 0x51): 'GlobalPlatform'
         }
     AID_ETSI_app_code = {
         (0x00, 0x00): 'Reserved',
@@ -1468,6 +1470,12 @@ class UICC(ISO7816):
         (0xFF, 0x33): 'France',
         (0xFF, 0x44): 'United Kingdom',
         (0xFF, 0x49): 'Germany',
+        }
+    AID_GP_code = {
+        (0xA0, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00): 'GlobalPlatform card manager (before v211)',
+        (0xA0, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00): 'GlobalPlatform card manager (before v211)',
+        (0xA0, 0x00, 0x00, 0x01, 0x51, 0x00, 0x00): 'GlobalPlatform card manager (v211 and after)',
+        (0xA0, 0x00, 0x00, 0x00, 0x18, 0x43, 0x4D, 0x00): 'GlobalPlatform card manager (GemXpresso Pro)'
         }
     
     pin_status = {
@@ -1531,6 +1539,7 @@ class UICC(ISO7816):
         '''
         ISO7816.__init__(self, CLA=0x00)
         self.AID = []
+        self.AID_GP = {}
         
         if self.dbg >= 2:
             log(3, '(UICC.__init__) type definition: %s' % type(self))
@@ -1615,7 +1624,6 @@ class UICC(ISO7816):
         and available AID (Application ID) referenced
         
         puts it into self.AID
-        interprets and print the content of the self.AID list
         '''
         #go back to MF and select EF_DIR
         #self.select(addr=[])
@@ -1640,7 +1648,7 @@ class UICC(ISO7816):
     @staticmethod
     def interpret_AID(aid=[]):
         '''
-        interprets and prints the aid provided
+        returns a string with the interpretation of the AID provided
         '''
         if len(aid) < 11:
             return
@@ -1668,6 +1676,20 @@ class UICC(ISO7816):
         
         return('%s || %s || %s || %s || %s' \
             % (aid_rid, aid_app, aid_country, aid_provider, tuple(aid[11:])))
+    
+    def get_AID_GP(self):
+        '''
+        tries to select all AID addresses from AID_GP_app_code at the MF level
+        
+        puts those to which there is a positive SW response into self.AID_GP
+        '''
+        for aid in self.AID_GP_code.keys():
+            aid = list(aid)
+            self.select_by_name(aid)
+            if self.coms()[2] == (0x90, 0x00):
+                # positive response, where we could read the data returned by
+                # the application
+                self.AID_GP[tuple(aid)] = BERTLV_extract(self.coms()[3])
     
     def get_ICCID(self):
         '''
