@@ -23,5 +23,5 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 # and Jean-Daniel Aussel pyscard (magical) python binding
 # specificities of SIM and USIM card available
 
-__all__ = ['utils', 'ICC', 'SIM', 'USIM', 'FS', 'EMV']
-__version__ = '0.2.0'
+__all__ = ['utils', 'ICC', 'SIM', 'USIM', 'FS', 'EMV', 'GP']
+__version__ = '0.3.0'
