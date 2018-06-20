@@ -74,6 +74,8 @@ class EMV(ISO7816):
         (0x01, 0x01, 0x03): 'quasi credit',
         }
     
+    # for more complete EMV AID, check
+    # https://www.eftlab.com.au/index.php/site-map/knowledge-base/212-emv-rid
     
     def __init__(self):
         '''
