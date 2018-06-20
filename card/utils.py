@@ -35,9 +35,39 @@ def log(level, string):
     # could output to a file
     # but here, just print()
     print('[%s] %s' % (log_levels[level], string))
-    
+
+
+BER_TAG = {
+    1 : 'BOOLEAN',
+    2 : 'INTEGER',
+    3 : 'BIT STRING',
+    4 : 'OCTET STRING',
+    5 : 'NULL',
+    6 : 'OID',
+    7 : 'ObkectDescriptor',
+    8 : 'EXTERNAL',
+    9 : 'REAL',
+    10: 'ENUMERATED',
+    11: 'EMBEDDED-PDV',
+    12: 'UTF8String',
+    13: 'RELATIVE-OID',
+    16: 'SEQUENCE',
+    17: 'SET',
+    19: 'PrintableString',
+    22: 'IA5String',
+    23: 'UTCTime',
+    24: 'GeneralizedTime',
+    26: 'VisibleString',
+    31: 'DATE',
+    32: 'TIME-OF-DAY',
+    33: 'DATE-TIME',
+    34: 'DURATION',
+    35: 'OID-IRI',
+    36: 'RELATIVE-OID-IRI'
+    }
+
 # from python 2.6, format('b') allows to use 0b10010110 notation: 
-# much convinient
+# much convenient
 def byteToBit(byte):
     '''
     byteToBit(0xAB) -> [1, 0, 1, 0, 1, 0, 1, 1]
@@ -168,7 +198,7 @@ def first_BERTLV_parser(bytelist):
     else:
         Tag_bits = byte0[3:8]
     
-    # Tag number calculation 
+    # Tag number calculation
     Tag_num = 0
     for j in range(len(Tag_bits)):
         Tag_num += Tag_bits[len(Tag_bits)-j-1] * pow(2, j)
@@ -178,7 +208,8 @@ def first_BERTLV_parser(bytelist):
         Len_num = bytelist[i+1] - 0x80
         Len = reduce(lambda x,y: (x<<8)+y, bytelist[i+2:i+2+Len_num])
         Val = bytelist[i+2+Len_num:i+2+Len_num+Len]
-    # Length coded with 1 byte
+    
+    # Length coded with 1 byte (BER short form)
     else:
         Len_num = 1
         Len = bytelist[i+1]
@@ -203,6 +234,66 @@ def BERTLV_parser(bytelist):
         # need to manage lengths of Tag and Length
         bytelist = bytelist[ T[0] + L[0] + L[1] : ]
     return ret
+
+def BERTLV_extract(bytelist):
+    '''
+    BERTLV_extract([]) -> {}
+    
+    parse the input bytes as BERTLV structure recursively until no more 
+    constructed object are present, and returns a corresponding dict of 
+    {tag_value: (tag_complete, data_value)}
+    '''
+    ret = []
+    comps = BERTLV_parser(bytelist)
+    for comp in comps:
+        if comp[0][1] == 'primitive':
+            if comp[0][0] == 'universal' and comp[0][2] in BER_TAG:
+                ret.append( [[comp[0][0], comp[0][2], BER_TAG[comp[0][2]]],
+                             comp[2]] )
+                #if comp[0][2] == 6:
+                #    # decode OID
+                #    ret[-1].append( decode_OID(ret[-1][1]) )
+            else:
+                ret.append( [[comp[0][0], comp[0][2]], comp[2]] )
+        else:
+            if comp[0][0] == 'universal' and comp[0][2] in BER_TAG:
+                ret.append( [[comp[0][0], comp[0][2], BER_TAG[comp[0][2]]],
+                             BERTLV_extract(comp[2])] )
+            else:
+                ret.append( [[comp[0][0], comp[0][2]],
+                             BERTLV_extract(comp[2])] )
+    return ret
+
+def decode_OID(data=[]):
+    '''
+    decode a BER-encoded ASN.1 OID into a string representing the ASN.1 OID 
+    abstract value
+    '''
+    if not data:
+        return ''
+    arcs = []
+    # decode OID arc values
+    v = 0
+    for b in data:
+        v <<= 7
+        if b&0x80:
+            v += (b&0x7f)
+        else:
+            v += b
+            arcs.append(v)
+            v = 0
+    if v != 0:
+        # invalid or incomplete OID
+        return ''
+    #
+    if arcs[0] < 40:
+        return '0 ' + ' '.join(['%i' % v for v in arcs])
+    elif 40 <= arcs[0] < 80:
+        arcs[0] = arcs[0]-40
+        return '1 ' + ' '.join(['%i' % v for v in arcs])
+    else:
+        arcs[0] = arcs[0]-80
+        return '2 ' + ' '.join(['%i' % v for v in data])
 
 def decode_BCD(data=[]):
     '''
