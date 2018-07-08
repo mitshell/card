@@ -30,10 +30,14 @@ from binascii import hexlify
 from struct import unpack, pack
 from random import _urandom as urand
 from CryptoMobile.Milenage import *
-from libmich.formats.L3Mobile_IE import ID
 
 ISO7816.dbg = 0
 UICC.dbg = 0
+
+def encode_bcd_byte(dig):
+    if len(dig) % 2:
+        dig += 'F'
+    return [(int(dig[i+1], 16)<<4)+int(dig[i], 16) for i in range(0, len(dig), 2)]
 
 ##################
 # fixed prefixes #
@@ -78,7 +82,7 @@ SMSP = _al + _p_ind + _dest_addr + _sc_addr + _pid + _dcs + _val
 # original sysmoUSIM SST: [0xFF, 0x33, 0xFF, 0xFF, 0x3F, 0x0, 0x3F, 0x03, 0x30, 0x3C]
 # disabling proactive SIM and Menu selection (to not receive ugly chinese popups)
 SST = [0xFF, 0x33, 0xFF, 0xFF, 0x3F, 0x0, 0x0F, 0x0, 0x30, 0x3C]
-# disabling PLMN selector (as EF_PHLMsel is bugged in sysmoUSIM), Advice of Charge,
+# disabling PLMN selector (as EF_HPLMsel is bugged in sysmoUSIM), Advice of Charge,
 SST = [0xFF, 0x0, 0xFF, 0xFF, 0x3F, 0x0, 0x0F, 0x0, 0x30, 0x3C]
 
 #######################
@@ -104,20 +108,25 @@ def encode_ICCID(digit_str=''):
     # max length is 10 bytes / 19 digits
     # padding with 0xF
     if not digit_str.isdigit():
-        print('[-] we need a string of digits')
-        return
+        raise(Exception('ICCID: string of (up to 19) digits required, %r' % digit_str))
     # ensure its less or equal than 10 bytes, and pad it
     digit_str = digit_str[:19] + 'F'*(20-len(digit_str[:19]))
     # return the BCD encoded vector
-    return [(int(digit_str[i+1],16)<<4)+int(digit_str[i],16) \
-            for i in range(0, 20, 2)]
+    return encode_bcd_byte(digit_str)
+
 
 def encode_IMSI(digit_str=''):
     # Length + IMSI ID as vector
     if not digit_str.isdigit():
-        print('[-] we need a string of digits')
-        return
-    return [0x08] + stringToByte(str(ID(val=digit_str[:16], type='IMSI')))
+        raise(Exception('IMSI: string of (up to 16) digits required, %r' % digit_str))
+    if len(digit_str) % 2:
+        # odd length
+        odd = 1
+    else:
+        odd = 0
+    b1 = (int(digit_str[0])<<4) + (odd<<3) + 1
+    return [0x08, b1] + encode_bcd_byte(digit_str[1:])
+
 
 def program_vec(K=[], OPc=[], ICCID=[], IMSI=[]):
     # work with ISO class
@@ -138,18 +147,22 @@ def program_vec(K=[], OPc=[], ICCID=[], IMSI=[]):
     c.disconnect()
     return 1
 
+
 def program_str(K=16*'\0', OPc=16*'\0', ICCID=10*'\0', IMSI=9*'\0'):
     [K, OPc, ICCID, IMSI] = map(stringToByte, [K, OPc, ICCID, IMSI])
     return program_vec(K, OPc, ICCID, IMSI)
+
 
 def sqn_to_str(i=0):
     if type(i) != int: raise()
     return '\0\0' + pack('!I', i)
 
+
 def str_to_sqn(s=6*'\0'):
     if len(s) != 6: raise()
     r = unpack('!HI', s)
     return (r[0]<<32) + r[1]
+
 
 def verify_chv(uicc, chv='32213232', adm=0xA):
     apdu = [0x30+int(d) for d in chv if d.isdigit()]
@@ -158,6 +171,7 @@ def verify_chv(uicc, chv='32213232', adm=0xA):
         return True
     else:
         return False
+
 
 def program_files(uicc):
     # program SIM with SMSP and HMPLN infos

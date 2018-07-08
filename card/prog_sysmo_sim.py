@@ -28,10 +28,14 @@ from card.SIM import SIM
 from card.USIM import USIM
 from binascii import hexlify
 from struct import unpack, pack
-from libmich.formats.L3Mobile_IE import ID
 
 ISO7816.dbg = 0
 UICC.dbg = 0
+
+def encode_bcd_byte(dig):
+    if len(dig) % 2:
+        dig += 'F'
+    return [(int(dig[i+1], 16)<<4)+int(dig[i], 16) for i in range(0, len(dig), 2)]
 
 ##################
 # fixed prefixes #
@@ -54,7 +58,7 @@ PLMNsel = HPLMN \
         + 7 * [0xFF, 0xFF, 0xFF]
 #
 # HPLMN search period (in minutes)
-T_HPLMN = [0x1]
+T_HPLMN = [0x2]
 #
 # Service Provider Name (display condition + string of 15 bytes) 
 SPN = [0b1] + [ord(c) for c in 'Test Telecom'] + 4*[0xFF]
@@ -75,7 +79,7 @@ SMSP = _al + _p_ind + _dest_addr + _sc_addr + _pid + _dcs + _val
 # original sysmoUSIM SST: [0xFF, 0x33, 0xFF, 0xFF, 0x3F, 0x0, 0x3F, 0x03, 0x30, 0x3C]
 # disabling proactive SIM and Menu selection (trying not to receive ugly chinese popups)
 SST = [0xFF, 0x33, 0xFF, 0xFF, 0x3F, 0x0, 0x0F, 0x0, 0x30, 0x3C]
-# disabling PLMN selector (as EF_PHLMsel is bugged in sysmoUSIM), Advice of Charge,
+# disabling PLMN selector (as EF_HPLMsel is bugged in sysmoUSIM), Advice of Charge,
 SST = [0xFF, 0x00, 0xFF, 0xFF, 0x3F, 0x0, 0x0F, 0x0, 0x30, 0x3C]
 
 ######################
@@ -97,20 +101,25 @@ def encode_ICCID(digit_str=''):
     # max length is 10 bytes / 19 digits
     # padding with 0xF
     if not digit_str.isdigit():
-        print('[-] we need a string of digits')
-        return
+        raise(Exception('ICCID: string of (up to 19) digits required, %r' % digit_str))
     # ensure its less or equal than 10 bytes, and pad it
     digit_str = digit_str[:19] + 'F'*(20-len(digit_str[:19]))
     # return the BCD encoded vector
-    return [(int(digit_str[i+1],16)<<4)+int(digit_str[i],16) \
-            for i in range(0, 20, 2)]
+    return encode_bcd_byte(digit_str)
+
 
 def encode_IMSI(digit_str=''):
     # Length + IMSI ID as vector
     if not digit_str.isdigit():
-        print('[-] we need a string of digits')
-        return
-    return [0x08] + stringToByte(str(ID(val=digit_str[:16], type='IMSI')))
+        raise(Exception('IMSI: string of (up to 16) digits required, %r' % digit_str))
+    if len(digit_str) % 2:
+        # odd length
+        odd = 1
+    else:
+        odd = 0
+    b1 = (int(digit_str[0])<<4) + (odd<<3) + 1
+    return [0x08, b1] + encode_bcd_byte(digit_str[1:])
+
 
 def verify_chv(sim, chv=CHV_PROG, adm=0xA):
     ret = sim.VERIFY(P2=adm, Data=chv)
