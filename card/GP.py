@@ -195,9 +195,10 @@ class GP(UICC):
     
     def interpret_infos(self):
         '''
-        self.interpret_infos() -> str
+        self.interpret_infos() -> list of str
         
-        prints the results of self.get_infos()
+        returns a list of str ready to be printed, 
+        corresponding to the results of self.get_infos()
         '''
         if not self.Infos:
             self.get_infos()
@@ -210,13 +211,13 @@ class GP(UICC):
                     info = getattr(self, self.FSDesc[p1p2][1])(data)
                 except:
                     if self.dbg:
-                        log(2, '(GP._dec_*) error while decoding data')
-                    info = 'raw: %s' % _pp.pformat(data)
+                        log(2, '(GP._dec_*) error while decoding data at P1P2 %r' % (p1p2,))
+                    info = 'raw: %s' % self._dec_generic(data)
                 ret.append('[+] Tag %.2X.%.2X: %s\n%s'\
                            % (p1p2[0], p1p2[1], self.FSDesc[p1p2][0], info))
             else:
                 ret.append('[+] Tag %.2X.%.2X: _unknown_\nraw: %s'\
-                           % (p1p2[0], p1p2[1], _pp.pformat(data)))
+                           % (p1p2[0], p1p2[1], self._dec_generic(data)))
         return ret
     
     def _dec_generic(self, data):
@@ -302,8 +303,12 @@ class GP(UICC):
         return '\n'.join(['    [+] %s' % s for s in dec])
     
     def _dec_seq_cnt(self, data):
-        assert(len(data) == 2)
-        return '%i' % (data[1] + (data[0]<<8)) 
+        if len(data) == 2:
+            return '%i' % (data[1] + (data[0]<<8)) 
+        elif len(data) == 3:
+            return '%i' % (data[2] + (data[1]<<8) + (data[0]<<16))
+        else:
+            assert()
     
     def _dec_conf_cnt(self, data):
         assert(len(data) == 2)
