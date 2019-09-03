@@ -1123,7 +1123,7 @@ class ISO7816(object):
             fil['Data'] = []
             # for record data: need to check the number of recordings
             # stored in the file, and iterate for each
-            for i in range( (fil['Size'] / fil['Record Length']) ):
+            for i in range( (fil['Size'] // fil['Record Length']) ):
                 self.coms.push( self.READ_RECORD(P1=i+1, P2=0x04, \
                     Le=fil['Record Length']) )
                 if self.coms()[2] != (0x90, 0x00):
@@ -1440,6 +1440,7 @@ class UICC(ISO7816):
         (0xA0, 0x00, 0x00, 0x00, 0x09): 'ETSI',
         (0xA0, 0x00, 0x00, 0x00, 0x87): '3GPP',
         (0xA0, 0x00, 0x00, 0x03, 0x43): '3GPP2',
+        (0xA0, 0x00, 0x00, 0x06, 0x45): 'OneM2M',
         (0xA0, 0x00, 0x00, 0x04, 0x12): 'OMA',
         (0xA0, 0x00, 0x00, 0x04, 0x24): 'WiMAX',
         (0xA0, 0x00, 0x00, 0x00, 0x03): 'GlobalPlatform',
@@ -1461,10 +1462,17 @@ class UICC(ISO7816):
         (0x10, 0x04): 'ISIM',
         (0x10, 0x05): 'USIM API for JavaCard',
         (0x10, 0x06): 'ISIM API for JavaCard',
-        (0x10, 0x05): 'Contact Manager API for JavaCard',
+        (0x10, 0x07): 'Contact Manager API for JavaCard',
+        (0x10, 0x08): '3GPP USIM-INI',
+        (0x10, 0x09): '3GPP USIM-RN',
+        (0x10, 0x0A): '3GPP HPSIM',
         }
     AID_3GPP2_app_code = {
         (0x10, 0x02): 'CSIM',
+        }
+    AID_OneM2M_app_code = {
+        (0x10, 0x01): 'oneM2M UICC',
+        (0x10, 0x02): 'oneM2M 1M2MSM',
         }
     AID_country_code = {
         (0xFF, 0x33): 'France',
@@ -1668,6 +1676,9 @@ class UICC(ISO7816):
         if aid_rid == (0xA0, 0x00, 0x00, 0x03, 0x43) \
         and aid_app in UICC.AID_3GPP2_app_code.keys(): 
             aid_app = UICC.AID_3GPP2_app_code[aid_app]
+        if aid_rid == (0xA0, 0x00, 0x00, 0x06, 0x45) \
+        and aid_app in UICC.AID_OneM2M_app_code.keys():
+            aid_app = UICC.AID_OneM2M_app_code[aid_app]
         # get AID responsible SDO and country
         if aid_rid in UICC.AID_RID.keys():
             aid_rid = UICC.AID_RID[aid_rid]

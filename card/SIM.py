@@ -90,6 +90,7 @@ SIM_service_table = {
     56 : "Service Provider Display Information",
     }
 
+
 class SIM(ISO7816):
     '''
     define attributes, methods and facilities for ETSI / 3GPP SIM card
@@ -243,16 +244,16 @@ class SIM(ISO7816):
             fil['EF_num'] = Data[15]
             fil['codes_num'] = Data[16]
             fil['CHV1'] = ('not initialized','initialized')\
-                          [(Data[18] & 0x80) / 0x80]\
+                          [Data[18] >> 7]\
                         + ': %d attempts remain' % (Data[18] & 0x0F)
             fil['unblock_CHV1'] = ('not initialized','initialized')\
-                                  [(Data[19] & 0x80) / 0x80]\
+                                  [Data[19] >> 7]\
                                 + ': %d attempts remain' % (Data[19] & 0x0F)
             fil['CHV2'] = ('not initialized','initialized')\
-                          [(Data[20] & 0x80) / 0x80]\
+                          [Data[20] >> 7]\
                         + ': %d attempts remain' % (Data[20] & 0x0F)
             fil['unblock_CHV2'] = ('not initialized','initialized')\
-                                  [(Data[21] & 0x80) / 0x80]\
+                                  [Data[21] >> 7]\
                                 + ': %d attempts remain' % (Data[21] & 0x0F)
             if len(Data) > 23: 
                 fil['Adm'] = Data[23:]
