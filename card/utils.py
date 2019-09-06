@@ -334,8 +334,7 @@ def write_dict(dict, fd):
     '''
     write a dict() content to a file descriptor
     '''
-    keys = dict.keys()
-    keys.sort()
+    keys = sorted(dict.keys())
     fd.write('\n')
     for k in keys:
         rec = dict[k]
