@@ -78,10 +78,10 @@ class EMV(ISO7816):
     # https://www.eftlab.com.au/index.php/site-map/knowledge-base/212-emv-rid
     
     def __init__(self):
-        '''
+        """
         initializes like an ISO7816-4 card with CLA=0x00
         and check available AID (Application ID) read straight after card init
-        '''
+        """
         ISO7816.__init__(self, CLA=0x00)
         self.AID = []
         
@@ -91,12 +91,12 @@ class EMV(ISO7816):
     
     
     def get_AID(self):
-        '''
+        """
         checks AID straight after card init, 
         and read available AID (Application ID) referenced
         
         puts it into self.AID
-        '''
+        """
         # read record to get EMV Application DF supported by the ICC
         recs = []
         SFI = 1 # I dont know exactly why... but it works, at least

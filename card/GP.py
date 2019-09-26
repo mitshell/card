@@ -50,13 +50,13 @@ pp = pprint.PrettyPrinter(indent=2)
 
 
 class GP(UICC):
-    '''
+    """
     defines attributes, methods and facilities for GlobalPlatform card
     check GP specifications in GPC Card Specifications
     
     inherits (eventually overrides) methods and objects from UICC class
     use self.dbg = 1 or more to print live debugging information
-    '''
+    """
     
     FSDesc = {
         (0x00, 0x42): ('Issuer Identification Number',
@@ -143,12 +143,12 @@ class GP(UICC):
         self.CLA = 0x80
     
     def get_infos(self):
-        '''
+        """
         self.get_infos() -> None
         
         tries to read GP specific global information from the OPEN domain
         and fills self.FS with results
-        '''
+        """
         for (p1, p2) in self.FSDesc.keys():
             ret = self.GET_DATA(P1=p1, P2=p2, Le=0)
             self.coms.push(ret)
@@ -194,12 +194,12 @@ class GP(UICC):
                                 log(3, '> found %.2X.%.2X:\n%r' % (p1, p2, data))
     
     def interpret_infos(self):
-        '''
+        """
         self.interpret_infos() -> list of str
         
         returns a list of str ready to be printed, 
         corresponding to the results of self.get_infos()
-        '''
+        """
         if not self.Infos:
             self.get_infos()
         ret = []

@@ -169,21 +169,21 @@ USIM_service_table = {
 
 
 class USIM(UICC):
-    '''
+    """
     defines attributes, methods and facilities for ETSI / 3GPP USIM card
     check USIM specifications in 3GPP TS 31.102
     
     inherits (eventually overrides) methods and objects from UICC class
     use self.dbg = 1 or more to print live debugging information
-    '''
+    """
     
     def __init__(self):
-        '''
+        """
         initializes like an ISO7816-4 card with CLA=0x00
         and checks available AID (Application ID) read from EF_DIR
         
         initializes on the MF
-        '''
+        """
         # initialize like a UICC
         ISO7816.__init__(self, CLA=0x00)
         self.AID = []
@@ -227,12 +227,12 @@ class USIM(UICC):
         return status
     
     def get_imsi(self):
-        '''
+        """
         get_imsi() -> string(IMSI)
         
         reads IMSI value at address [0x6F, 0x07]
         returns IMSI string on success or None on error
-        '''
+        """
         # select IMSI file
         imsi = self.select([0x6F, 0x07])
         if imsi is None: 
@@ -247,14 +247,14 @@ class USIM(UICC):
         return None
     
     def get_CS_keys(self):
-        '''
+        """
         get_CS_keys() -> [KSI, CK, IK]
         
         reads CS UMTS keys at address [0x6F, 0x08]
         returns list of 3 keys, each are list of bytes, on success 
             (or eventually the whole file dict if the format is strange)
         or None on error
-        '''
+        """
         EF_KEYS = self.select( [0x6F, 0x08] )
         if self.coms()[2] == (0x90, 0x00):
             if len(EF_KEYS['Data']) == 33:
@@ -269,14 +269,14 @@ class USIM(UICC):
         return None
     
     def get_PS_keys(self):
-        '''
+        """
         get_PS_keys() -> [KSI, CK_PS, IK_PS]
         
         reads PS UMTS keys at address [0x6F, 0x09]
         returns list of 3 keys, each are list of bytes, on success 
             (or eventually the whole file dict if the format is strange)
         or None on error
-        '''
+        """
         EF_KEYSPS = self.select( [0x6F, 0x09] )
         if self.coms()[2] == (0x90, 0x00):
             if len(EF_KEYSPS['Data']) == 33:
@@ -291,7 +291,7 @@ class USIM(UICC):
         return None
     
     def get_GBA_BP(self):
-        '''
+        """
         get_GBA_BP() -> [[RAND, B-TID, KeyLifetime], ...], 
         Length-Value parsing style
         
@@ -300,7 +300,7 @@ class USIM(UICC):
         returns list of list of bytes on success 
             (or eventually the whole file dict if the format is strange)
         or None on error
-        '''
+        """
         EF_GBABP = self.select( [0x6F, 0xD6] )
         if self.coms()[2] == (0x90, 0x00):
             if len(EF_GBABP['Data']) > 2:
@@ -314,7 +314,7 @@ class USIM(UICC):
         return None
     
     def update_GBA_BP(self, RAND, B_TID, key_lifetime):
-        '''
+        """
         update_GBA_BP([RAND], [B_TID], [key_lifetime]) 
             -> void (or EF_GBABP file dict if RAND not found)
         
@@ -323,7 +323,7 @@ class USIM(UICC):
         and updates the file structure with provided B-TID and KeyLifetime
         returns nothing (or eventually the whole file dict
         if the RAND is not found)
-        '''
+        """
         GBA_BP = self.get_GBA_BP()
         for i in GBA_BP:
             if i == RAND:
@@ -346,14 +346,14 @@ class USIM(UICC):
                 return GBA_BP
     
     def get_GBA_NL(self):
-        '''
+        """
         get_GBA_NL() -> [[NAF_ID, B-TID], ...] , TLV parsing style
         
         reads EF_GBANL file at address [0x6F, 0xDA], containing NAF_ID and B-TID
         returns list of list of bytes vector on success 
             (or eventually the whole file dict if the format is strange)
         or None on error
-        '''
+        """
         EF_GBANL = self.select( [0x6F, 0xDA] )
         if self.coms()[2] == (0x90, 0x00):
             if len(EF_GBANL['Data'][0]) > 2:
@@ -384,7 +384,7 @@ class USIM(UICC):
         return None
     
     def authenticate(self, RAND=[], AUTN=[], ctx='3G'):
-        '''
+        """
         self.authenticate(RAND, AUTN, ctx='3G') -> [key1, key2...], 
         LV parsing style
         
@@ -398,7 +398,7 @@ class USIM(UICC):
             [RES] or [AUTS] for 'GBA'
             [RES, Kc] for '2G'
         or None on error
-        '''
+        """
         # prepare input data for authentication
         if ctx in ('3G', 'VGCS', 'GBA', 'MBMS') and len(RAND) != 16 \
         and len(AUTN) != 16: 
@@ -464,7 +464,7 @@ class USIM(UICC):
         return None
     
     def GBA_derivation(self, NAF_ID=[], IMPI=[]):
-        '''
+        """
         self.GBA_derivation(NAF_ID, IMPI) -> [Ks_ext_naf]
         
         runs the INTERNAL AUTHENTICATE command in the USIM 
@@ -482,7 +482,7 @@ class USIM(UICC):
         or None on error
         
         see TS 33.220 for GBA specific formats
-        '''
+        """
         # need to run 1st an authenicate command with 'GBA' context, 
         # so to have the required keys in the USIM
         P2 = 0x84
@@ -504,13 +504,13 @@ class USIM(UICC):
         return None
     
     def get_services(self):
-        '''
+        """
         self.get_services() -> None
         
         reads USIM Service Table at address [0x6F, 0x38]
         prints services allowed / activated
         returns None
-        '''
+        """
         # select SST file
         sst = self.select([0x6F, 0x38])
         if self.coms()[2] != (0x90, 0x00): 
@@ -543,7 +543,7 @@ class USIM(UICC):
         return services
     
     def explore_fs(self, filename='usim_fs', depth=2):
-        '''
+        """
         self.explore_fs(self, filename='usim_fs') -> void
             filename: file to write in information found
             depth: depth in recursivity, True=infinite
@@ -551,7 +551,7 @@ class USIM(UICC):
         brute force all file addresses from 1st USIM AID
         with a maximum recursion level (to avoid infinite looping...)
         write information on existing DF and file in the output file
-        '''
+        """
         usimfs_entries = USIM_app_FS.keys()
         self.explore_DF([], self.AID.index(self.USIM_AID)+1, depth)
         

@@ -240,16 +240,22 @@ class personalize(object):
     HPLMN, PLMNsel, SPN
     '''
     
-    def __init__(self, ADM, serial_number='000'):
+    def __init__(self, ADM, serial_number='000', zero=False):
         # prepare data to write into the card
         if not len(serial_number) == 3 or not serial_number.isdigit():
             raise(Exception('serial: 3-digits required'))
         self.ICCID      = ICCID_pre + serial_number
         self.ICCID     += str(compute_luhn(self.ICCID))
         self.IMSI       = IMSI_pre + serial_number
-        self.K          = Ki_pre + serial_number
-        self.Milenage   = Milenage(OP)
-        self.OPc        = make_OPc(self.K, OP)
+        if zero:
+            OP              = 16 * b'\0'
+            self.K          = 16 * b'\0'
+            self.Milenage   = Milenage(OP)
+            self.OPc        = make_OPc(self.K, OP)
+        else:
+            self.K          = Ki_pre + serial_number
+            self.Milenage   = Milenage(OP)
+            self.OPc        = make_OPc(self.K, OP)
         # verify parameters
         if len(self.K) != 16 or len(self.OPc) != 16:
             raise(Exception('K / OPc: 16-bytes buffer required'))
