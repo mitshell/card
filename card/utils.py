@@ -23,6 +23,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 # being used in smartcard specs #
 #################################
 
+import sys
+
 from collections import deque
 from smartcard.util import toBytes
 
@@ -89,10 +91,16 @@ def stringToByte(string):
     
     converts a string into a list of bytes
     '''
-    bytelist = []
-    for c in string:
-        bytelist.extend( toBytes(c.encode('hex')) )
-    return bytelist
+    if sys.version_info[0] < 3:
+        bytelist = []
+        for c in string:
+            bytelist.extend( toBytes(c.encode('hex')) )
+        return bytelist
+    else:
+        if isinstance(string, str):
+            return list(string.encode('ascii'))
+        else:
+            return list(string)
 
 # equivalent to the pyscard function "toASCIIString"
 def byteToString(bytelist):
@@ -101,10 +109,13 @@ def byteToString(bytelist):
     
     converts a list of bytes into a string
     '''
-    string = ''
-    for b in bytelist:
-        string += chr(b)
-    return string
+    if sys.version_info[0] < 3:
+        string = ''
+        for b in bytelist:
+            string += chr(b)
+        return string
+    else:
+        return bytes(bytelist)
 
 def LV_parser(bytelist):
     '''
@@ -319,7 +330,7 @@ def compute_luhn(digit_str=''):
         print('you must provide a string of digits')
         return
     # append 0
-    d = [int(c) for c in digit_str+'0']
+    d = [int(c) for c in digit_str + '0']
     # sum of odd digits
     cs = sum(d[-1::-2])
     # sum of (sum of digits(even digits * 2))
