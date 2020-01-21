@@ -1487,6 +1487,7 @@ class UICC(ISO7816):
         (0x10, 0x09): '3GPP USIM-RN',
         (0x10, 0x0A): '3GPP HPSIM',
         }
+    # TODO: check USIM specific AID as defined in TS 31.130, annex C
     AID_3GPP2_app_code = {
         (0x10, 0x02): 'CSIM',
         }
@@ -1505,6 +1506,8 @@ class UICC(ISO7816):
         (0xA0, 0x00, 0x00, 0x01, 0x51, 0x00, 0x00): 'GlobalPlatform card manager (v211 and after)',
         (0xA0, 0x00, 0x00, 0x00, 0x18, 0x43, 0x4D, 0x00): 'GlobalPlatform card manager (GemXpresso Pro)'
         }
+    # TODO: check UICC access control AID as defined in the Android API
+    #https://source.android.com/devices/tech/config/uicc
     
     pin_status = {
         0x01 : "PIN Appl 1",
