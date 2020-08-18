@@ -57,7 +57,7 @@ class ISO7816(object):
     standard file tags available in "file_tags" class dictionnary
     """
     
-    dbg = 0
+    dbg = 5
     
     INS_dic = {
         0x04 : 'DEACTIVATE FILE',
@@ -141,7 +141,7 @@ class ISO7816(object):
         0xAB : 'Security Attribute expanded',
         }     
                
-    def __init__(self, CLA=0x00):
+    def __init__(self, CLA=0x00, reader=""):
         """
         connect smartcard and defines class CLA code for communication
         uses "pyscard" library services
@@ -150,7 +150,10 @@ class ISO7816(object):
         and self.coms attribute with associated "apdu_stack" instance
         """
         cardtype = AnyCardType()
-        cardrequest = CardRequest(timeout=1, cardType=cardtype)
+        if reader:
+          cardrequest = CardRequest(timeout=1, cardType=cardtype, readers=[reader])
+        else:
+          cardrequest = CardRequest(timeout=1, cardType=cardtype)
         self.cardservice = cardrequest.waitforcard()
         self.cardservice.connection.connect()
         self.reader = self.cardservice.connection.getReader()
