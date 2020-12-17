@@ -1643,7 +1643,7 @@ class UICC(ISO7816):
                     PIN_status += 'RFU (Local)#'
                 else: 
                     PIN_status += '#'
-            if self.dbg >= 2: 
+            if UICC.dbg >= 2: 
                 log(3, '(parse_pin_status) %s: %s; PIN status: %s' \
                     % (T, V, PIN_status))
             Data = Data[L+2:]
