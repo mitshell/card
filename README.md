@@ -41,7 +41,7 @@ check 3GPP TS 11.11 or TS 51.011.
 UICC / USIM cards are some more evolved as they are multi-applications / multi-channels cards: 
 check ETSI TS 101.221 and 3GPP TS 31.101 and 31.102.
 Moreover, recent cards often holds more application, such as from 
-(GlobalPlatform)[https://globalplatform.org/specs-library/] (abbr. GP),
+[GlobalPlatform](https://globalplatform.org/specs-library/) (abbr. GP),
 and may also support contact-less access based on the ISO 14443 standard.
 
 The following _card_ library has been developped mostly for experiencing with SIM and USIM cards,
