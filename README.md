@@ -11,16 +11,16 @@ Any feedback and contribution are always welcomed !
 - [Structure](#Structure)
 - [Install](#Install)
    - [Prerequisites](#Prerequisites)
-   - [Library install](#Library install)
+   - [Library install](#Library-install)
 - [Usage](#Usage)
 - [Contributing](#Contributing)
 - [License](#License)
 - [Examples](#Examples)
-   - [ISO7816 session](#ISO7816 session)
-   - [SIM session](#SIM session)
-   - [USIM session](#USIM session)
-   - [GP session](#GP session)
-   - [EMV session](#EMV session)
+   - [ISO7816 session](#ISO7816-session)
+   - [SIM session](#SIM-session)
+   - [USIM session](#USIM-session)
+   - [GP session](#GP-session)
+   - [EMV session](#EMV-session)
 
 
 ## Background
@@ -40,7 +40,8 @@ SIM cards are easy to read as they are only mono-application:
 check 3GPP TS 11.11 or TS 51.011.
 UICC / USIM cards are some more evolved as they are multi-applications / multi-channels cards: 
 check ETSI TS 101.221 and 3GPP TS 31.101 and 31.102.
-Moreover, recent cards often holds more application, such as from GlobalPlatform (abbr. GP),
+Moreover, recent cards often holds more application, such as from 
+(GlobalPlatform)[https://globalplatform.org/specs-library/] (abbr. GP),
 and may also support contact-less access based on the ISO 14443 standard.
 
 The following _card_ library has been developped mostly for experiencing with SIM and USIM cards,
@@ -97,9 +98,9 @@ after scanning it.
 A setup.py script is provided at the root of the project, you just need to use it
 to install the library (system-wide with _sudo_, or only for your user).
 
-'''
+```
 python3 setup.py install
-'''
+```
 
 
 ## Usage
@@ -116,14 +117,14 @@ you want to update in your SIM or USIM card.
 
 
 ## Contributing
-Any contribution is always very welcomed ! In can come in different ways:
+Any contribution is always very welcomed ! It can come in different ways:
 - in case you find some bugs, please open an issue in the project issue tracker,
    and provide detailed information regarding your configuration and the bug you 
-   encountered.
+   encountered ;
 - in case you fixed a bug, or you did a nice addition or extension, do not hesitate
-   to submit a pull request.
+   to submit a pull request ;
 - in case you are using this project in one of your application, or you just find
-   it useful, do not hesitate to send an email. Getting feedback is always a pleasure.
+   it useful, do not hesitate to send an email: getting feedback is always a pleasure.
 
 Please refrain from opening an issue however before you have read all the README.
 Most of the basic questions regarding this project may be answered here.
