@@ -135,7 +135,7 @@ class GP(UICC):
         # initialize like an UICC object, to get the AID_GP
         UICC.__init__(self)
         self.get_AID_GP()
-        if not self.AID_GP:
+        if not self.AID_GP and self.dbg:
             log(2, '(GP.__init__) no GP AID found')
         #
         self.Infos  = {}
@@ -163,14 +163,14 @@ class GP(UICC):
                         # must be a single component BER-TLV struct starting 
                         # with the given tag
                         if len(data) != 1 and self.dbg:
-                            log(2, '(GP.get_infos) several BER-TLV structures '\
+                            log(2, '(get_infos) several BER-TLV structures '\
                                    'for tag %.2X.%.2X' % (p1, p2))
                             self.Infos[(p1, p2)] = data
                         else:
                             self.Infos[(p1, p2)] = data[0][1]
                     except:
                         if self.dbg:
-                            log(2, '(GP.get_infos) invalid BER-TLV structure '\
+                            log(2, '(get_infos) invalid BER-TLV structure '\
                                    'for tag %.2X.%.2X' % (p1, p2))
                         data = ret[3]
     
@@ -191,7 +191,8 @@ class GP(UICC):
                             except:
                                 data = 'raw: %s' % hexlify(byteToString(ret[3]))
                             if self.dbg:
-                                log(3, '> found %.2X.%.2X:\n%r' % (p1, p2, data))
+                                log(3, '(scan_p1p2) found %.2X.%.2X:\n%r'\
+                                    % (p1, p2, data))
     
     def interpret_infos(self):
         """
@@ -211,7 +212,8 @@ class GP(UICC):
                     info = getattr(self, self.FSDesc[p1p2][1])(data)
                 except:
                     if self.dbg:
-                        log(2, '(GP._dec_*) error while decoding data at P1P2 %r' % (p1p2,))
+                        log(2, '(interpret_infos) error while decoding data '\
+                            'at P1P2 %r' % (p1p2,))
                     info = 'raw: %s' % self._dec_generic(data)
                 ret.append('[+] Tag %.2X.%.2X: %s\n%s'\
                            % (p1p2[0], p1p2[1], self.FSDesc[p1p2][0], info))
@@ -335,4 +337,4 @@ class GP(UICC):
                '    [+] IC personalization date: %.2X%.2X\n'\
                '    [+] IC presonalization equipment id: %.2X%.2X%.2X%.2X'\
                % tuple(data)
-    
+

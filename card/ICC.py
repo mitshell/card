@@ -53,8 +53,8 @@ class ISO7816(object):
     define attributes, methods and facilities for ISO-7816-4 standard smartcard
     
     use self.dbg = 1 or more to print live debugging information
-    standard instructions codes available in "INS_dic" class dictionnary
-    standard file tags available in "file_tags" class dictionnary
+    standard instructions codes available in "INS_dic" class attribute dictionnary
+    standard file tags available in "file_tags" class attribute dictionnary
     """
     
     dbg = 0
@@ -130,7 +130,7 @@ class ISO7816(object):
         0x87 : 'EF with FCI extension',
         0x88 : 'Short File Identifier',
         0x8A : 'Life Cycle Status',
-        0x8B : 'Security Attributes ref to expanded',
+        0x8B : 'Security Attributes ref to expand',
         0x8C : 'Security Attributes compact',
         0x8D : 'EF with Security Environment',
         0x8E : 'Channel Security Attribute',
@@ -383,9 +383,9 @@ class ISO7816(object):
         """
         ilist = []
         for i in range(start, 256):
-            if self.dbg >= 3:
-                log(3, '(INS bruteforce) testing %d for INS code ' \
-                    'with %d CLA code' % (i, self.CLA))
+            if self.dbg:
+                log(3, '(bf_ins) testing %d for INS code with %d CLA code'\
+                    % (i, self.CLA))
             ret = self.sr_apdu([self.CLA, i, 0x00, 0x00])
             if ret[2] != (0x6D, 0x00): 
                 # DBG log
@@ -712,9 +712,9 @@ class ISO7816(object):
         for file structure and parsing method...
         """
         ber = BERTLV_parser( Data )
-        if self.dbg >= 3:
-            log(3, 'BER structure:\n%s' % ber)
-        if len(ber) > 1:
+        if self.dbg >= 2:
+            log(3, '(parse_file) BER structure:\n%s' % ber)
+        if len(ber) > 1 and self.dbg:
             # TODO: implements recursive BER object parsing
             log(1, '(parse_file) contain more than 1 BER object: '\
                 '%s\nnot implemented' % ber)
@@ -738,12 +738,12 @@ class ISO7816(object):
         if ber[0][0][2] == 0x4: 
             fil['Control'] = 'FMD'
             if self.dbg:
-                log(1, '(parse_file) FMD file structure parsing ' \
+                log(1, '(parse_file) FMD file structure parsing '\
                     'not implemented')
         elif ber[0][0][2] == 0xF:
             fil['Control'] = 'FCI'
             if self.dbg:
-                log(1, '(parse_file) FCI 0xF file structure parsing '
+                log(1, '(parse_file) FCI 0xF file structure parsing '\
                     'not implemented')
         else: 
             fil['Control'] = ber[0][0]
@@ -768,7 +768,7 @@ class ISO7816(object):
             # TODO: seemd full compliancy 
             # would require to work with the BERTLV parser...
             [T, L, V] = first_TLV_parser(toProcess)
-            if self.dbg >= 3:
+            if self.dbg >= 2:
                 if T in self.file_tags.keys(): 
                     Tag = self.file_tags[T]
                 else: 
@@ -832,16 +832,20 @@ class ISO7816(object):
         interprets the content as the life cycle
         and enriches the file dictionnary passed as argument
         """
-        if   Data[0] == 1: fil['Life Cycle Status'] = 'creation state'
-        elif Data[0] == 3: fil['Life Cycle Status'] = 'initialization state'
-        elif Data[0] in (5, 7): fil['Life Cycle Status'] = 'operational state' \
-            ' - activated'
-        elif Data[0] in (4, 6): fil['Life Cycle Status'] = 'operational state' \
-            ' - deactivated'
-        elif Data[0] in range(12, 15): fil['Life Cycle Status'] = \
-            'termination state'
-        elif Data[0] >= 16: fil['Life Cycle Status'] = 'proprietary'
-        else: fil['Life Cycle Status'] = 'RFU'
+        if   Data[0] == 1:
+            fil['Life Cycle Status'] = 'creation state'
+        elif Data[0] == 3:
+            fil['Life Cycle Status'] = 'initialization state'
+        elif Data[0] in (5, 7):
+            fil['Life Cycle Status'] = 'operational state - activated'
+        elif Data[0] in (4, 6):
+            fil['Life Cycle Status'] = 'operational state - deactivated'
+        elif Data[0] in range(12, 15):
+            fil['Life Cycle Status'] = 'termination state'
+        elif Data[0] >= 16:
+            fil['Life Cycle Status'] = 'proprietary'
+        else:
+            fil['Life Cycle Status'] = 'RFU'
         return fil
     
     @staticmethod
@@ -1029,7 +1033,6 @@ class ISO7816(object):
             for i in range(2, file_length, 2):
                 SEID_byte.append(Data[i:i+1])
                 ARR_byte.append(Data[:+1:i+2])
-            
     
     @staticmethod
     def parse_security_attribute(Data, fil):
@@ -1057,7 +1060,7 @@ class ISO7816(object):
             # TODO: seemd full compliancy 
             # would require to work with the BERTLV parser...
             [T, L, V] = first_TLV_parser(toProcess)
-            if self.dbg >= 3:
+            if self.dbg >= 2:
                 if T in self.file_tags.keys(): 
                     Tag = self.file_tags[T]
                 else: 
@@ -1067,9 +1070,7 @@ class ISO7816(object):
             # application template
             if T == 0x61:
                 fil['Application Template'] = V
-            
-            
-            
+            #
             # do extra processing here
             # File ID, DF name, Short file id
             elif T in (0x83, 0x84, 0x88):
@@ -1087,7 +1088,7 @@ class ISO7816(object):
                 fil[self.file_tags[T]] = V 
                 # TODO: no concrete parsing at this time...
                 if self.dbg:
-                    log(2, '(parse_FCP) parsing security attributes not ' \
+                    log(2, '(parse_FCI) parsing security attributes not '\
                         'implemented for tag 0x%X' % T)
                 fil = self.parse_security_attribute(V, fil)
             # file size or length
@@ -1133,7 +1134,7 @@ class ISO7816(object):
         if fil['Structure'] == 'transparent':
             self.coms.push( self.READ_BINARY(Le=fil['Size']) )
             if self.coms()[2] != (0x90, 0x00):
-                if self.dbg >= 3: 
+                if self.dbg >= 2: 
                     log(3,  '(read_EF) %s' % self.coms())
                 return fil
             fil['Data'] = self.coms()[3]
@@ -1149,7 +1150,7 @@ class ISO7816(object):
                 if self.coms()[2] != (0x90, 0x00):
                     # should mean there is an issue 
                     # somewhere in the file parsing process
-                    if self.dbg >= 2:
+                    if self.dbg:
                         log(2, '(read_EF) error in iterating the RECORD ' \
                             'parsing at iteration %s\n%s' % (i, self.coms()))
                     return fil
@@ -1222,7 +1223,7 @@ class ISO7816(object):
         # different SW codes for UICC and old ISO card (e.g. SIM)
         if is_UICC and self.coms()[2][0] != 0x61 \
         or not is_UICC and self.coms()[2][0] != 0x9F:
-            if self.dbg >= 3: 
+            if self.dbg >= 2: 
                 log(3, '(select) %s' % self.coms())
             return None
             
@@ -1230,7 +1231,7 @@ class ISO7816(object):
         # if error, return None, else parse file info
         self.coms.push(self.GET_RESPONSE(Le=self.coms()[2][1]))
         if self.coms()[2] != (0x90, 0x00):
-            if self.dbg >= 3: 
+            if self.dbg >= 2: 
                 log(3, '(select) %s' % self.coms())
             return None
         
@@ -1252,7 +1253,7 @@ class ISO7816(object):
     def go_to_path(self, path=[], under_AID=None):
         """
         self.go_to_path(path=[0x.., 0x.., 0x.., 0x.., ..], under_AID=None)
-            -> void
+            -> None
         
         selects all DF addresses successively from the path given
         uses the .select() method with "fid" as selection type 
@@ -1303,7 +1304,7 @@ class ISO7816(object):
         # then, AID directory structure to use if under_AID
         if under_AID:
             if not hasattr(self, '_AID%i_struct' % under_AID):
-                if self.dbg >= 2:
+                if self.dbg:
                     log(2, '(make_blacklist)  AID%i directory structure not' \
                            ' found' % under_AID)
                 if current_DF: BL.append(current_DF) 
@@ -1312,7 +1313,7 @@ class ISO7816(object):
         # else, select MF directory structure to use
         else:
             if not hasattr(self, '_MF_struct'):
-                if self.dbg >= 2:
+                if self.dbg:
                     log(2, '(make_blacklist) MF directory structure not found')
                 if current_DF: BL.append(current_DF)
                 return BL
@@ -1350,7 +1351,7 @@ class ISO7816(object):
         # and selected path, in order to select only child file ID:
         BL = self.make_blacklist(dir_path, under_AID)
         if self.dbg >= 2:
-            log(3, 'blacklist: %s' % BL)
+            log(3, '(scan_DF) blacklist: %s' % BL)
         # init variables to return
         FS, child_DF = [], []
         #
@@ -1642,9 +1643,9 @@ class UICC(ISO7816):
                     PIN_status += 'RFU (Local)#'
                 else: 
                     PIN_status += '#'
-            #if self.dbg >= 3: 
-            #    log(3, '(parse_pin_status) %s: %s; PIN status: %s' \
-            #        % (T, V, PIN_status))
+            if self.dbg >= 2: 
+                log(3, '(parse_pin_status) %s: %s; PIN status: %s' \
+                    % (T, V, PIN_status))
             Data = Data[L+2:]
         fil['PIN Status'] = PIN_status
         return fil
@@ -1661,7 +1662,7 @@ class UICC(ISO7816):
         
         # EF_DIR is at the MF level and contains Application ID:
         EF_DIR = self.select([0x2F, 0x00], type='pmf')
-        if self.dbg >= 3: 
+        if self.dbg >= 2: 
             log(3, '(get_AID) EF_DIR: %s' % EF_DIR)
         if EF_DIR is None: 
             return
@@ -1735,7 +1736,7 @@ class UICC(ISO7816):
         
         # EF_ICCID is at the MF level and contains Application ID:
         EF_ICCID = self.select([0x2F, 0xE2], type='pmf')
-        if self.dbg >= 3: 
+        if self.dbg >= 2: 
             log(3, '(get_ICCID) EF_ICCID: %s' % EF_ICCID)
         if EF_ICCID is None: 
             return None

@@ -212,6 +212,8 @@ class SIM(ISO7816):
         """
         log(1, '(unblock_pin) not implemented: aborting')
         return
+        
+        '''TODO: rework this
         #if pin_type == 1: 
         #    pin_type = 0
         if pin_type in [0, 2] and type(unblock_pin) is str and \
@@ -224,6 +226,7 @@ class SIM(ISO7816):
             if self.dbg: 
                 log(2, '(unblock_pin) bad input parameters')
             #return self.UNBLOCK_CHV(P2=pin_type)
+        '''
     
     def parse_file(self, Data=[]):
         """
@@ -401,11 +404,11 @@ class SIM(ISO7816):
                         services.append('%i : %s' % (cnt, info))
         return services
     
-    def explore_fs(self, filename='sim_fs', depth=True, emul=False):
+    def explore_fs(self, filename='sim_fs.txt', depth=True, emul=False):
         """
-        self.explore_fs(self, filename='sim_fs') -> void
+        self.explore_fs(self, filename='sim_fs', depth=True) -> None
             filename: file to write in information found
-            depth: depth in recursivity, True=infinite
+            depth: depth in recursivity, uint, or True=infinite
         
         brute force all file addresses from MF recursively 
         (until no more DF are found)
@@ -453,5 +456,4 @@ class SIM(ISO7816):
         if self.dbg >= 2: 
             log(3, '(get_ICCID) %s' % self.coms())
         return None
-
 

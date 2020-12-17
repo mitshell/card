@@ -115,7 +115,8 @@ class EMV(ISO7816):
             and rec[6:6+rec[5]] not in self.AID:
                 self.AID.append( rec[6:6+rec[5]] )
             if self.dbg:
-                log(3, '(EMV.__init__) AID found: %s' % EMV.interpret_AID(self.AID[-1]))
+                log(3, '(EMV.__init__) AID found: %s'\
+                    % EMV.interpret_AID(self.AID[-1]))
     
     @staticmethod
     def interpret_AID(aid=[]):

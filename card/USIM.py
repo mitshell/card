@@ -207,7 +207,7 @@ class USIM(UICC):
                     log(2, '(USIM.__init__) USIM AID selection failed')
                 if usim is not None:
                     self.USIM_AID = aid
-                    if self.dbg:
+                    if self.dbg >= 2:
                         log(3, '(USIM.__init__) USIM AID selection succeeded\n')
     
     @staticmethod
@@ -261,8 +261,9 @@ class USIM(UICC):
                 KSI, CK, IK = ( EF_KEYS['Data'][0:1],
                                 EF_KEYS['Data'][1:17],
                                 EF_KEYS['Data'][17:33])
-                log(3, '(get_CS_keys) successful CS keys selection: ' \
-                        'Get [KSI, CK, IK]')
+                if self.dbg >= 2:
+                    log(3, '(get_CS_keys) successful CS keys selection: ' \
+                            'Get [KSI, CK, IK]')
                 return [KSI, CK, IK]
             else: 
                 return EF_KEYS
@@ -283,8 +284,9 @@ class USIM(UICC):
                 KSI, CK, IK = ( EF_KEYSPS['Data'][0:1], 
                                 EF_KEYSPS['Data'][1:17], 
                                 EF_KEYSPS['Data'][17:33] )
-                log(3, '(get_PS_keys) successful PS keys selection: ' \
-                        'Get [KSI, CK, IK]')
+                if self.dbg >= 2:
+                    log(3, '(get_PS_keys) successful PS keys selection: ' \
+                            'Get [KSI, CK, IK]')
                 return [KSI, CK, IK]
             else: 
                 return EF_KEYSPS
@@ -305,8 +307,9 @@ class USIM(UICC):
         if self.coms()[2] == (0x90, 0x00):
             if len(EF_GBABP['Data']) > 2:
                 #RAND, B_TID, Lifetime = LV_parser( EF_GBABP['Data'] )
-                log(3, '(get_GBA_BP) successful GBA_BP selection: ' \
-                       'Get list of [RAND, B-TID, KeyLifetime]')
+                if self.dbg >= 2:
+                    log(3, '(get_GBA_BP) successful GBA_BP selection: ' \
+                           'Get list of [RAND, B-TID, KeyLifetime]')
                 #return (RAND, B_TID, Lifetime)
                 return LV_parser( EF_GBABP['Data'] )
             else: 
@@ -316,7 +319,7 @@ class USIM(UICC):
     def update_GBA_BP(self, RAND, B_TID, key_lifetime):
         """
         update_GBA_BP([RAND], [B_TID], [key_lifetime]) 
-            -> void (or EF_GBABP file dict if RAND not found)
+            -> None (or EF_GBABP file dict if RAND not found)
         
         reads EF_GBABP file at address [0x6F, 0xD6],
         checks if RAND provided is referenced, 
@@ -327,7 +330,8 @@ class USIM(UICC):
         GBA_BP = self.get_GBA_BP()
         for i in GBA_BP:
             if i == RAND:
-                log(3, '(update_GBA_BP) RAND found in GBA_BP')
+                if self.dbg:
+                    log(3, '(update_GBA_BP) RAND found in GBA_BP')
                 # update transparent file with B_TID and key lifetime
                 self.coms.push( self.UPDATE_BINARY( P2=len(RAND)+1,
                                 Data=[len(B_TID)] + B_TID + \
@@ -337,11 +341,11 @@ class USIM(UICC):
                 if self.coms()[2] == 0x90 and self.dbg:
                     log(3, '(update_GBA_BP) successful GBA_BP update with ' \
                            'B-TID and key lifetime')
-                if self.dbg >= 3: 
+                if self.dbg:
                     log(3, '(update_GBA_BP) new value of EF_GBA_BP:\n%s' \
                            % self.get_GBA_BP())
             else:
-                if self.dbg: 
+                if self.dbg:
                     log(2, '(update_GBA_BP) RAND not found in GBA_BP')
                 return GBA_BP
     
@@ -360,7 +364,6 @@ class USIM(UICC):
                 # This is Tag-Length-Value parsing, 
                 # with 0x80 for NAF_ID and 0x81 for B-TID
                 values = []
-                
                 for rec in EF_GBANL['Data']:
                     NAF_ID, B_TID = [], []
                     while len(rec) > 0:
@@ -374,9 +377,9 @@ class USIM(UICC):
                         elif tlv[0] == 0x81: 
                             B_TID = tlv[2]
                     values.append( [NAF_ID, B_TID] )
-                
-                log(3, '(get_GBA_NL) Successful GBA_NL selection: ' \
-                       'Get list of [NAF_ID, B-TID]')
+                if self.dbg:
+                    log(3, '(get_GBA_NL) Successful GBA_NL selection: ' \
+                           'Get list of [NAF_ID, B-TID]')
                 #return (NAF_ID, B_TID)
                 return values
             else: 
@@ -401,19 +404,22 @@ class USIM(UICC):
         """
         # prepare input data for authentication
         if ctx in ('3G', 'VGCS', 'GBA', 'MBMS') and len(RAND) != 16 \
-        and len(AUTN) != 16: 
-            log(1, '(authenticate) bad AUTN parameter: aborting')
+        and len(AUTN) != 16:
+            if self.dbg:
+                log(1, '(authenticate) bad AUTN parameter: aborting')
             return None
-        
+        #
         inp = []
         if ctx == '3G':
             P2 = 0x81
         elif ctx == 'VGCS':
             P2 = 0x82
-            log(1, '(authenticate) VGCS auth not implemented: aborting')
+            if self.dbg:
+                log(1, '(authenticate) VGCS auth not implemented: aborting')
             return None
         elif ctx == 'MBMS':
-            log(1, '(authenticate) MBMS auth not implemented: aborting')
+            if self.dbg:
+                log(1, '(authenticate) MBMS auth not implemented: aborting')
             return None
         elif ctx == 'GBA': 
             P2 = 0x84
@@ -423,8 +429,9 @@ class USIM(UICC):
         # and also, if ctx == '2G'... the safe way 
         # to avoid desynchronizing our USIM counter
             P2 = 0x80
-            if len(RAND) != 16: 
-                log(1, '(authenticate) bad RAND parameter: aborting')
+            if len(RAND) != 16:
+                if self.dbg:
+                    log(1, '(authenticate) bad RAND parameter: aborting')
                 return None
             # override input value for 2G authent
             inp = [len(RAND)] + RAND
@@ -435,7 +442,7 @@ class USIM(UICC):
             if self.coms()[2] == (0x90, 0x00):
                 val = self.coms()[3]
                 if P2 == 0x80:
-                    if self.dbg: 
+                    if self.dbg:
                         log(3, '(authenticate) successful 2G authentication. ' \
                                'Get [RES, Kc]')
                     values = LV_parser(val)
@@ -453,13 +460,13 @@ class USIM(UICC):
                     # returned values can be (RES, CK, IK) or (RES, CK, IK, Kc)
                     return values
                 elif val[0] == 0xDC:
-                    if self.dbg: 
+                    if self.dbg:
                         log(2, '(authenticate) synchronization failure. ' \
                                'Get [AUTS]')
                     values = LV_parser(val[1:])
                     return values
         #else:
-        if self.dbg: 
+        if self.dbg:
             log(1, '(authenticate) error: %s' % self.coms())
         return None
     
@@ -542,9 +549,9 @@ class USIM(UICC):
                         services.append('%i : available' % cnt)
         return services
     
-    def explore_fs(self, filename='usim_fs', depth=2):
+    def explore_fs(self, filename='usim_fs.txt', depth=2):
         """
-        self.explore_fs(self, filename='usim_fs') -> void
+        self.explore_fs(self, filename='usim_fs', depth=2) -> None
             filename: file to write in information found
             depth: depth in recursivity, True=infinite
         
@@ -569,5 +576,4 @@ class USIM(UICC):
             fd.write('\n')
         
         fd.close()
-#
 
