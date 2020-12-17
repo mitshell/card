@@ -136,8 +136,8 @@ The detail of the license is provided in the _license.txt_ file.
 
 ## Examples
 Here is a series of examples for using the main classes and methods of the library.
-When communicating with the smartcard, `pyscard` uses list of bytes (uint8 values).
-Every APDU and communication with the smartcard is handled in this way also by `card`.
+When communicating with the smartcard, _pyscard_ uses list of bytes (uint8 values).
+Every APDU and communication with the smartcard is handled in this way also by _card_.
 
 ### ISO7816 session
 The _ISO7816_ class within the _ICC_ module provides basic methods for many of the 
@@ -145,7 +145,7 @@ ISO7816 commands, together with a method to interpret SW codes returned by the c
 and methods to work with the smartcard filesystem.
 It does not provide high-level methods and may not be of great help if you want to simply 
 work with SIM cards. It provides however the following methods useful to do some
-scanning of a card: `ATR_scan()`, `bf_cla()` and `bf_ins()`.
+scanning of a card: _ATR\_scan()_, _bf\_cla()_ and _bf\_ins()_.
 The last 2 methods being dangerous, I am not using them that often !
 
 ```
@@ -248,6 +248,27 @@ In [9]: c.disconnect()
 The _ICC_ module also has a _UICC_ class, which has common methods for all UICC cards.
 Those are used for accessing USIM or GlobalPlatform application, or any other card application,
 through their Application ID (abbr. AID).
+
+```
+In [1]: from card.ICC import *
+
+In [2]: u = UICC()
+
+In [3]: u.get_AID()
+
+In [4]: u.AID
+Out[4]: 
+[[160, 0, 0, 0, 135, 16, 2, 255, 51, 255, 1, 137, 0, 0, 1, 0],
+ [160, 0, 0, 0, 99, 80, 75, 67, 83, 45, 49, 53]]
+
+In [5]: for aid in u.AID:
+    ...:     print('%s: %s' % (aid, u.interpret_AID(aid)))
+    ...:     
+[160, 0, 0, 0, 135, 16, 2, 255, 51, 255, 1, 137, 0, 0, 1, 0]: 3GPP || USIM || France || (255, 1) || (137, 0, 0, 1, 0)
+[160, 0, 0, 0, 99, 80, 75, 67, 83, 45, 49, 53]: (160, 0, 0, 0, 99) || (80, 75) || (67, 83) || (45, 49) || (53,)
+
+In [6]: u.disconnect()
+```
 
 
 ### SIM session
@@ -353,32 +374,7 @@ Out[14]:
  'sw1, sw2: 90 00 - normal processing: command accepted: no further qualification',
  (144, 0),
  [255,
-  255,
-  255,
-  255,
-  255,
-  255,
-  255,
-  255,
-  255,
-  255,
-  255,
-  255,
-  255,
-  255,
-  255,
-  255,
-  255,
-  255,
-  255,
-  255,
-  255,
-  255,
-  255,
-  255,
-  255,
-  255,
-  255,
+  [...]
   255]]
 
 In [15]: s.coms # the last 10 exchanged APDU                                                                                                         
@@ -404,7 +400,9 @@ commands.
 A method to scan the entire filesystem of the SIM card is available too. It bruteforces
 all the file identifiers within directories (DF) recursively, starting from the master
 file (MF) and writes all found MF / DF / EF metadata and potential content into a
-text file.
+text file. While doing so, a dict under the _FS_ attribute is also populated with
+the content of the filesystem ; this further enables to produce a graph of the filesystem
+with the _make\_graph()_ function.
 
 ```
 In [1]: from card.SIM import *
@@ -413,8 +411,15 @@ In [2]: s = SIM()
 
 In [3]: s.dbg = 1 # this is to check the progression of the scanning
 
-In [4]: s.explore_fs('my_sim_fs.txt') # this will take a while, result will be available into ./my_sim_fs.txt
+In [4]: s.explore_fs('my_sim_fs.txt') # this takes a while, results will be dumped into ./my_sim_fs.txt
+
+In [5]: g = make_graph(s.FS)
+
+In [6]: g.write_png('my_sim_fs.png') # this creates a PNG file
+
+In [7]: s.disconnect()
 ```
+
 
 ### USIM session
 The _USIM_ module has the _USIM_ class, to deal with the USIM application available on UICC cards.
@@ -515,7 +520,19 @@ Out[10]:
    0,
    168]]}
 
-In [11]: u.disconnect()
+In [11]: u.authenticate(RAND=16*[0x12], ctx='2G') # use the USIM authenticate API for a 2G authentication
+Out[11]: [[89, 207, 185, 186], [240, 127, 197, 92, 185, 134, 144, 170]]
+
+In [12]: u.authenticate(RAND=16*[0x12], AUTN=16*[0x23], ctx='3G') # this won't work unless we provide an appropriate AUTN value
+
+In [13]: u.coms()                                                                                                                                          
+Out[13]: 
+['INTERNAL AUTHENTICATE apdu: 00 88 00 81 22 10 12 12 12 12 12 12 12 12 12 12 12 12 12 12 12 12 10 23 23 23 23 23 23 23 23 23 23 23 23 23 23 23 23',
+ 'sw1, sw2: 98 62 - security management: authentication error, incorrect MAC',
+ (152, 98),
+ []]
+
+In [14]: u.disconnect()
 ```
 
 The _select()_ method can be used similarly as with the SIM class, to access the content
@@ -611,7 +628,10 @@ In [6]: g.scan_p1p2() # to scan all P1 P2 parameters for GP files, this may take
 [DBG] > found 00.45:
 [[['applicative', 5], [137, 51, 1, 40, 22, 32, 19, 87, 67, 0]]]
 [...]
+
+In [7]: g.disconnect()
 ```
+
 
 ### EMV session
 TODO
