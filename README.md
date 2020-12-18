@@ -421,6 +421,9 @@ In [6]: g.write_png('my_sim_fs.png') # this creates a PNG file
 In [7]: s.disconnect()
 ```
 
+[Here](http://michau.benoit.free.fr/codes/smartcard/sysmoUSIM/) is an example of such 
+SIM and USIM dumps and graphs.
+
 
 ### USIM session
 The _USIM_ module has the _USIM_ class, to deal with the USIM application available on UICC cards.

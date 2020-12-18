@@ -15,7 +15,7 @@ setup(
     
     # optional dependency
     extras_require={
-        'graph': ['pydot']
+        'graph': ['pydot', 'graphviz']
         },
     
     author="Benoit Michau",
