@@ -131,9 +131,9 @@ class GP(UICC):
     
     GP_OID = [42, 134, 72, 134, 252, 107] # {1 2 840 114283}
     
-    def __init__(self):
+    def __init__(self, reader=''):
         # initialize like an UICC object, to get the AID_GP
-        UICC.__init__(self)
+        UICC.__init__(self, reader=reader)
         self.get_AID_GP()
         if not self.AID_GP and self.dbg:
             log(2, '(GP.__init__) no GP AID found')

@@ -177,7 +177,7 @@ class USIM(UICC):
     use self.dbg = 1 or more to print live debugging information
     """
     
-    def __init__(self):
+    def __init__(self, reader=''):
         """
         initializes like an ISO7816-4 card with CLA=0x00
         and checks available AID (Application ID) read from EF_DIR
@@ -185,15 +185,15 @@ class USIM(UICC):
         initializes on the MF
         """
         # initialize like a UICC
-        ISO7816.__init__(self, CLA=0x00)
+        ISO7816.__init__(self, CLA=0x00, reader=reader)
         self.AID = []
-        
+        #
         if self.dbg >= 2:
             log(3, '(UICC.__init__) type definition: %s' % type(self))
             log(3, '(UICC.__init__) CLA definition: %s' % hex(self.CLA))
-        
+        #
         self.SELECT_ADF_USIM()
-
+    
     def SELECT_ADF_USIM(self):
         # USIM selection from AID
         if self.dbg:

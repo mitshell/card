@@ -77,18 +77,17 @@ class EMV(ISO7816):
     # for more complete EMV AID, check
     # https://www.eftlab.com.au/index.php/site-map/knowledge-base/212-emv-rid
     
-    def __init__(self):
+    def __init__(self, reader=''):
         """
         initializes like an ISO7816-4 card with CLA=0x00
         and check available AID (Application ID) read straight after card init
         """
-        ISO7816.__init__(self, CLA=0x00)
+        ISO7816.__init__(self, CLA=0x00, reader=reader)
         self.AID = []
-        
+        #
         if self.dbg >= 2:
             log(3, '(UICC.__init__) type definition: %s' % type(self))
             log(3, '(UICC.__init__) CLA definition: %s' % hex(self.CLA))
-    
     
     def get_AID(self):
         """

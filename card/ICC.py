@@ -139,9 +139,9 @@ class ISO7816(object):
         0xA2 : 'DO Pairs',
         0xA5 : 'Proprietary BERTLV',
         0xAB : 'Security Attribute expanded',
-        }     
-               
-    def __init__(self, CLA=0x00):
+        }
+    
+    def __init__(self, CLA=0x00, reader=''):
         """
         connect smartcard and defines class CLA code for communication
         uses "pyscard" library services
@@ -150,12 +150,15 @@ class ISO7816(object):
         and self.coms attribute with associated "apdu_stack" instance
         """
         cardtype = AnyCardType()
-        cardrequest = CardRequest(timeout=1, cardType=cardtype)
+        if reader:
+            cardrequest = CardRequest(timeout=1, cardType=cardtype, readers=[reader])
+        else:
+            cardrequest = CardRequest(timeout=1, cardType=cardtype)
         self.cardservice = cardrequest.waitforcard()
         self.cardservice.connection.connect()
         self.reader = self.cardservice.connection.getReader()
         self.ATR = self.cardservice.connection.getATR()
-        
+        #
         self.CLA = CLA
         self.coms = apdu_stack()
     
@@ -330,7 +333,7 @@ class ISO7816(object):
             try: 
                 data, sw1, sw2 = self.cardservice.connection.transmit(apdu)
             except CardConnectionException:
-                ISO7816.__init__(self, CLA = self.CLA)
+                ISO7816.__init__(self, CLA=self.CLA, reader=self.reader)
                 data, sw1, sw2 = self.cardservice.connection.transmit(apdu)
         else:
             data, sw1, sw2 = self.cardservice.connection.transmit(apdu)
@@ -1564,15 +1567,15 @@ class UICC(ISO7816):
         ([0x7F, 0x31], 'DF', 'DF_iDEN'),
         ]
     
-    def __init__(self):
+    def __init__(self, reader=''):
         """
         initializes like an ISO7816-4 card with CLA=0x00
         initialized on the MF
         """
-        ISO7816.__init__(self, CLA=0x00)
+        ISO7816.__init__(self, CLA=0x00, reader=reader)
         self.AID = []
         self.AID_GP = {}
-        
+        #
         if self.dbg >= 2:
             log(3, '(UICC.__init__) type definition: %s' % type(self))
             log(3, '(UICC.__init__) CLA definition: %s' % hex(self.CLA))
