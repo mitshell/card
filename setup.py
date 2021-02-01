@@ -21,8 +21,8 @@ setup(
     author="Benoit Michau",
     author_email="michau.benoit@gmail.com",
     url="https://github.com/mitshell/card/",
-    description="A library to manipulate smartcards used in telecommunications systems (SIM, USIM)",
-    long_description=open("README.txt", "r").read(),
+    description="A library to manipulate smartcards used in telecommunications systems (mostly SIM, USIM)",
+    long_description=open("README.md", "r").read(),
     keywords="SIM USIM UICC",
     license="GPLv2",
 )
