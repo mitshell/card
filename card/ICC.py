@@ -57,7 +57,7 @@ class ISO7816(object):
     standard file tags available in "file_tags" class attribute dictionnary
     """
     
-    dbg = 0
+    dbg = 1
     
     INS_dic = {
         0x04 : 'DEACTIVATE FILE',
@@ -193,7 +193,7 @@ class ISO7816(object):
                   % toHexString(ATR(self.ATR).getHistoricalBytes()))
             ATRcs = ATR(self.ATR).getChecksum()
             if ATRcs :
-                print('checksum: 0x%X' % ATRcs)
+                print('checksum: 0x%.2X' % ATRcs)
             else:
                 print('no ATR checksum')
             print('\nusing pcsc_scan ATR list file: %s' % smlist_file)
@@ -712,16 +712,16 @@ class ISO7816(object):
         parse_file(self, Data) -> Dict()
         
         parses a list of bytes returned when selecting a file
-        interprets the content of some informative bytes 
-        for file structure and parsing method...
+        interprets the content of some informative bytes for file structure and 
+        decoding method...
         """
         ber = BERTLV_parser( Data )
         if self.dbg >= 2:
-            log(3, '(parse_file) BER structure:\n%s' % ber)
-        if len(ber) > 1 and self.dbg:
+            log(3, '(parse_file) BER structure:\n%r' % ber)
+        if self.dbg and len(ber) > 1:
             # TODO: implements recursive BER object parsing
-            log(1, '(parse_file) contain more than 1 BER object: '\
-                '%s\nnot implemented' % ber)
+            log(2, '(parse_file) contain more than 1 BER object: %r : not implemented'\
+                    % ber)
         
         # for FCP control structure, precise parsing is done
         # this structure seems to be the most used for (U)SIM cards
@@ -741,14 +741,12 @@ class ISO7816(object):
         fil = {}
         if ber[0][0][2] == 0x4: 
             fil['Control'] = 'FMD'
-            if self.dbg:
-                log(1, '(parse_file) FMD file structure parsing '\
-                    'not implemented')
+            if self.dbg >= 2:
+                log(2, '(parse_file) FMD file structure parsing not implemented')
         elif ber[0][0][2] == 0xF:
             fil['Control'] = 'FCI'
-            if self.dbg:
-                log(1, '(parse_file) FCI 0xF file structure parsing '\
-                    'not implemented')
+            if self.dbg >= 2:
+                log(2, '(parse_file) FCI 0xF file structure parsing not implemented')
         else: 
             fil['Control'] = ber[0][0]
             if self.dbg:
@@ -762,8 +760,8 @@ class ISO7816(object):
         parse_FCP(Data) -> Dict()
         
         parses a list of bytes returned when selecting a file
-        interprets the content of some informative bytes 
-        for file structure and parsing method...
+        interprets the content of some informative bytes for file structure and 
+        decoding method...
         """
         fil = {}
         # loop on the Data bytes to parse TLV'style attributes
@@ -799,7 +797,7 @@ class ISO7816(object):
                 fil[self.file_tags[T]] = V 
                 if self.dbg >= 2:
                     log(3, '(parse_FCP) parse_security_attribute not implemented '\
-                           'for tag 0x%X' % T)
+                           'for tag 0x%.2X' % T)
                 self.parse_security_attribute(V, fil)
             # file size or length
             elif T in (0x80, 0x81):
@@ -1097,7 +1095,7 @@ class ISO7816(object):
                 fil[self.file_tags[T]] = V 
                 if self.dbg >= 2:
                     log(3, '(parse_FCI) parse_security_attribute not implemented '\
-                           'for tag 0x%X' % T)
+                           'for tag 0x%.2X' % T)
                 self.parse_security_attribute(V, fil)
             # file size or length
             elif T in (0x80, 0x81):
@@ -1578,7 +1576,7 @@ class UICC(ISO7816):
         initialized on the MF
         """
         ISO7816.__init__(self, CLA=0x00, reader=reader)
-        self.AID = []
+        self.AID    = []
         self.AID_GP = {}
         #
         if self.dbg >= 2:
@@ -1658,15 +1656,16 @@ class UICC(ISO7816):
         fil['PIN Status'] = PIN_status
         return fil
     
-    def get_AID(self):
+    def get_AID(self, backtoMF=False):
         """
         checks EF_DIR at the MF level, 
         and available AID (Application ID) referenced
         
         puts it into self.AID
         """
-        #go back to MF and select EF_DIR
-        #self.select(addr=[])
+        # go back to MF and select EF_DIR
+        if backtoMF:
+            self.select(addr=[])
         
         # EF_DIR is at the MF level and contains Application ID:
         EF_DIR = self.select([0x2F, 0x00], type='pmf')
@@ -1681,44 +1680,6 @@ class UICC(ISO7816):
             if (rec[0], rec[2]) == (0x61, 0x4F) and len(rec) > 6 \
             and rec[4:4+rec[3]] not in self.AID:
                 self.AID.append( rec[4:4+rec[3]] )
-        
-        #for aid in self.AID:
-        #    self.interpret_AID(aid)
-    
-    @staticmethod
-    def interpret_AID(aid=[]):
-        """
-        returns a string with the interpretation of the AID provided
-        """
-        if len(aid) < 11:
-            return
-        # check AID format
-        aid_rid = tuple(aid[0:5])
-        aid_app = tuple(aid[5:7])
-        aid_country = tuple(aid[7:9])
-        aid_provider = tuple(aid[9:11])
-        
-        # get AID application code, depending on SDO...
-        if aid_rid == (0xA0, 0x00, 0x00, 0x00, 0x09) \
-        and aid_app in UICC.AID_ETSI_app_code.keys(): 
-            aid_app = UICC.AID_ETSI_app_code[aid_app]
-        if aid_rid == (0xA0, 0x00, 0x00, 0x00, 0x87) \
-        and aid_app in UICC.AID_3GPP_app_code.keys(): 
-            aid_app = UICC.AID_3GPP_app_code[aid_app]
-        if aid_rid == (0xA0, 0x00, 0x00, 0x03, 0x43) \
-        and aid_app in UICC.AID_3GPP2_app_code.keys(): 
-            aid_app = UICC.AID_3GPP2_app_code[aid_app]
-        if aid_rid == (0xA0, 0x00, 0x00, 0x06, 0x45) \
-        and aid_app in UICC.AID_OneM2M_app_code.keys():
-            aid_app = UICC.AID_OneM2M_app_code[aid_app]
-        # get AID responsible SDO and country
-        if aid_rid in UICC.AID_RID.keys():
-            aid_rid = UICC.AID_RID[aid_rid]
-        if aid_country in UICC.AID_country_code.keys(): 
-            aid_country = UICC.AID_country_code[aid_country]
-        
-        return('%s || %s || %s || %s || %s' \
-            % (aid_rid, aid_app, aid_country, aid_provider, tuple(aid[11:])))
     
     def get_AID_GP(self):
         """
@@ -1733,6 +1694,66 @@ class UICC(ISO7816):
                 # positive response, where we could read the data returned by
                 # the application
                 self.AID_GP[tuple(aid)] = BERTLV_extract(self.coms()[3])
+    
+    @staticmethod
+    def interpret_AID(aid=[]):
+        """
+        returns a string with the interpretation of the AID provided
+        """
+        if len(aid) < 11:
+            return
+        aid = tuple(aid)
+        aid_rid, aid_app, aid_country = aid[0:5], aid[5:7], aid[7:9]
+        aid = {
+            'rid' : '%.2X %.2X %.2X %.2X %.2X' % aid_rid,
+            'app' : '%.2X %.2X' % aid_app,
+            'country' : '%.2X %.2X' % aid_country,
+            'provider' : '%.2X %.2X' % aid[9:11],
+            'prop' : ('%.2X ' * len(aid[11:])) % aid[11:]
+            }
+        
+        # check for known AID format
+        if aid_rid in UICC.AID_RID.keys():
+            aid['rid'] += ' (%s)' % UICC.AID_RID[aid_rid]
+        if aid_rid == (0xA0, 0x00, 0x00, 0x00, 0x09) \
+        and aid_app in UICC.AID_ETSI_app_code.keys(): 
+            aid['app'] += ' (%s)' % UICC.AID_ETSI_app_code[aid_app]
+        elif aid_rid == (0xA0, 0x00, 0x00, 0x00, 0x87) \
+        and aid_app in UICC.AID_3GPP_app_code.keys(): 
+            aid['app'] += ' (%s)' % UICC.AID_3GPP_app_code[aid_app]
+        elif aid_rid == (0xA0, 0x00, 0x00, 0x03, 0x43) \
+        and aid_app in UICC.AID_3GPP2_app_code.keys(): 
+            aid['app'] += ' (%s)' % UICC.AID_3GPP2_app_code[aid_app]
+        elif aid_rid == (0xA0, 0x00, 0x00, 0x06, 0x45) \
+        and aid_app in UICC.AID_OneM2M_app_code.keys():
+            aid['app'] += ' (%s)' % UICC.AID_OneM2M_app_code[aid_app]
+        if aid_country in UICC.AID_country_code.keys(): 
+            aid_country = UICC.AID_country_code[aid_country]
+        #
+        return 'rid %(rid)s || app %(app)s || country %(country)s || '\
+               'provider %(provider)s || %(prop)s' % aid
+    
+    @staticmethod
+    def interpret_AID_GP(aid=[]):
+        """
+        returns a string with the interpretation of the GlobalPlatform AID provided
+        """
+        for code, interp in UICC.AID_GP_code.items():
+            if code == aid[:len(code)]:
+                if len(aid) > len(code):
+                    fstr = 'GP || ' + '%.2X ' * len(code) + '(' + interp + ')' + ' || ' + '%.2X ' * (len(aid)-len(code))
+                    return fstr % tuple(code + aid[len(code):])
+                else:
+                    fstr = 'GP || ' + '%.2X ' * len(code) + '(' + interp + ')'
+                    return fstr % code
+    
+    def print_AID(self):
+        self.get_AID()
+        for aid in self.AID:
+            print(self.interpret_AID(aid))
+        self.get_AID_GP()
+        for aid in self.AID_GP:
+            print(self.interpret_AID_GP(aid))
     
     def get_ICCID(self):
         """
