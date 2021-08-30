@@ -237,7 +237,7 @@ def BERTLV_parser(bytelist):
     returns a list of 3-Tuples containing BERTLV records
     '''
     ret = []
-    while len(bytelist) > 0:
+    while len(bytelist) > 1:
         T, L, V = first_BERTLV_parser(bytelist)
         #if T == 0xFF: 
         #    break # padding bytes
