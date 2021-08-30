@@ -706,6 +706,7 @@ class ISO7816(object):
     # evolved "macro" method for ISO7816 card
     # need the "coms" attribute being an apdu_stack()
     ##########################
+    
     def parse_file(self, Data=[]):
         """
         parse_file(self, Data) -> Dict()
@@ -768,7 +769,7 @@ class ISO7816(object):
         # loop on the Data bytes to parse TLV'style attributes
         toProcess = Data
         while len(toProcess) > 0:
-            # TODO: seemd full compliancy 
+            # TODO: for full compliancy 
             # would require to work with the BERTLV parser...
             [T, L, V] = first_TLV_parser(toProcess)
             if self.dbg >= 2:
@@ -785,19 +786,20 @@ class ISO7816(object):
             # Security Attributes compact format
             elif T == 0x8C:
                 fil[self.file_tags[T]] = V
-                fil = self.parse_compact_security_attribute(V, fil)
+                self.parse_compact_security_attribute(V, fil)
             # Security Attributes ref to expanded
             elif T == 0x8B:
                 fil[self.file_tags[T]] = V 
-                fil = self.parse_expanded_security_attribute(V, fil)
+                if self.dbg:
+                    log(2, '(parse_FCP) parse_expanded_security_attribute not '\
+                           'implemented')
+                self.parse_expanded_security_attribute(V, fil)
             # other security attributes... not implemented
             elif T in (0x86, 0x8E, 0xA0, 0xA1, 0xAB):
                 fil[self.file_tags[T]] = V 
-                # TODO: no concrete parsing at this time...
-                if self.dbg:
-                    log(2, '(parse_FCP) parsing security attributes not ' \
-                        'implemented for tag 0x%X' % T)
-                fil = self.parse_security_attribute(V, fil)
+                log(2, '(parse_FCP) parse_security_attribute not implemented '\
+                       'for tag 0x%X' % T)
+                self.parse_security_attribute(V, fil)
             # file size or length
             elif T in (0x80, 0x81):
                 fil[self.file_tags[T]] = sum( [ V[i] * pow(0x100, len(V)-i-1) \
@@ -806,13 +808,13 @@ class ISO7816(object):
             elif T == 0x82:
                 assert( L in (2, 5) )
                 fil[self.file_tags[T]] = V
-                fil = self.parse_file_descriptor(V, fil)
+                self.parse_file_descriptor(V, fil)
             # life cycle status
             elif T == 0x8A:
-                fil = self.parse_life_cycle(V, fil)
+                self.parse_life_cycle(V, fil)
             # proprietary information
             elif T == 0xA5:
-                fil = self.parse_proprietary(V, fil)
+                self.parse_proprietary(V, fil)
             else:
                 if T in self.file_tags.keys():
                     fil[self.file_tags[T]] = V
@@ -849,7 +851,6 @@ class ISO7816(object):
             fil['Life Cycle Status'] = 'proprietary'
         else:
             fil['Life Cycle Status'] = 'RFU'
-        return fil
     
     @staticmethod
     def parse_file_descriptor(Data, fil):
@@ -893,8 +894,6 @@ class ISO7816(object):
         # see coding convention in ISO 7816-4 Table 87
         if len(Data) == 5: 
             fil['Record Length'], fil['Record Number'] = Data[3], Data[4]
-        
-        return fil
     
     @staticmethod
     def parse_proprietary(Data, fil):
@@ -916,10 +915,9 @@ class ISO7816(object):
             }
         while len(Data) > 0:
             [T, L, V] = first_TLV_parser( Data )
-            if T in propr_tags.keys(): 
+            if T in propr_tags.keys():
                 fil[propr_tags[T]] = V
             Data = Data[L+2:]
-        return fil
     
     @staticmethod
     def parse_compact_security_attribute(Data, fil):
@@ -937,19 +935,18 @@ class ISO7816(object):
         if 'Type' in fil.keys():
             # DF security attributes parsing
             if fil['Type'] == 'DF':
-                sec += self._DF_access_mode(AM)
+                sec += ISO7816._DF_access_mode(AM)
             # EF security attributes parsing
             else:
-                sec += self._EF_access_mode(AM)
+                sec += ISO7816._EF_access_mode(AM)
             # loop on security conditions for the given access mode:
             for cond in SC:
-                sec += self._sec_cond(cond)
+                sec += ISO7816._sec_cond(cond)
         # return security conditions if parsed, return raw bytes otherwise
         if sec == '#':
             fil['Security Attributes raw'] = Data
         else:
             fil['Security Attributes'] = sec
-        return fil
     
     @staticmethod
     def _DF_access_mode(AM):
@@ -1015,11 +1012,14 @@ class ISO7816(object):
     @staticmethod
     def parse_expanded_security_attribute(Data, fil):
         """
+        TODO: to implement...
+        
         check references to EF_ARR file containing access conditions
         see ISO 7816-4
         """
+        return
+        # TODO
         # self.ARR = {ARR_id:[ARR_content],...}
-        return fil
         file_length = len(Data)
         if file_length == 1:
             ARR_byte = Data
@@ -1046,7 +1046,9 @@ class ISO7816(object):
         """
         # See ISO-IEC 7816-4 section 5.4.3, with compact and expanded format
         # not implemented yet (looks like useless for (U)SIM card ?)
-        return fil
+        return
+        # TODO
+    
     
     def parse_FCI(self, Data=[]):
         """
@@ -1081,19 +1083,21 @@ class ISO7816(object):
             # Security Attributes compact format
             elif T == 0x8C:
                 fil[self.file_tags[T]] = V
-                fil = self.parse_compact_security_attribute(V, fil)
+                self.parse_compact_security_attribute(V, fil)
             # Security Attributes ref to expanded
             elif T == 0x8B:
                 fil[self.file_tags[T]] = V 
-                fil = self.parse_expanded_security_attribute(V, fil)
+                if self.dbg:
+                    log(2, '(parse_FCI) parse_expanded_security_attribute not '\
+                           'implemented')
+                self.parse_expanded_security_attribute(V, fil)
             # other security attributes... not implemented
             elif T in (0x86, 0x8E, 0xA0, 0xA1, 0xAB):
                 fil[self.file_tags[T]] = V 
-                # TODO: no concrete parsing at this time...
                 if self.dbg:
-                    log(2, '(parse_FCI) parsing security attributes not '\
-                        'implemented for tag 0x%X' % T)
-                fil = self.parse_security_attribute(V, fil)
+                    log(2, '(parse_FCI) parse_security_attribute not implemented '\
+                           'for tag 0x%X' % T)
+                self.parse_security_attribute(V, fil)
             # file size or length
             elif T in (0x80, 0x81):
                 fil[self.file_tags[T]] = sum( [ V[i] * pow(0x100, len(V)-i-1) \
@@ -1102,13 +1106,13 @@ class ISO7816(object):
             elif T == 0x82:
                 assert( L in (2, 5) )
                 fil[self.file_tags[T]] = V
-                fil = self.parse_file_descriptor(V, fil)
+                self.parse_file_descriptor(V, fil)
             # life cycle status
             elif T == 0x8A:
-                fil = self.parse_life_cycle(V, fil)
+                self.parse_life_cycle(V, fil)
             # proprietary information
             elif T == 0xA5:
-                fil = self.parse_proprietary(V, fil)
+                self.parse_proprietary(V, fil)
             else:
                 if T in self.file_tags.keys():
                     fil[self.file_tags[T]] = V
