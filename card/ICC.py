@@ -790,15 +790,16 @@ class ISO7816(object):
             # Security Attributes ref to expanded
             elif T == 0x8B:
                 fil[self.file_tags[T]] = V 
-                if self.dbg:
-                    log(2, '(parse_FCP) parse_expanded_security_attribute not '\
+                if self.dbg >= 2:
+                    log(3, '(parse_FCP) parse_expanded_security_attribute not '\
                            'implemented')
                 self.parse_expanded_security_attribute(V, fil)
             # other security attributes... not implemented
             elif T in (0x86, 0x8E, 0xA0, 0xA1, 0xAB):
                 fil[self.file_tags[T]] = V 
-                log(2, '(parse_FCP) parse_security_attribute not implemented '\
-                       'for tag 0x%X' % T)
+                if self.dbg >= 2:
+                    log(3, '(parse_FCP) parse_security_attribute not implemented '\
+                           'for tag 0x%X' % T)
                 self.parse_security_attribute(V, fil)
             # file size or length
             elif T in (0x80, 0x81):
@@ -1087,15 +1088,15 @@ class ISO7816(object):
             # Security Attributes ref to expanded
             elif T == 0x8B:
                 fil[self.file_tags[T]] = V 
-                if self.dbg:
-                    log(2, '(parse_FCI) parse_expanded_security_attribute not '\
+                if self.dbg >= 2:
+                    log(3, '(parse_FCI) parse_expanded_security_attribute not '\
                            'implemented')
                 self.parse_expanded_security_attribute(V, fil)
             # other security attributes... not implemented
             elif T in (0x86, 0x8E, 0xA0, 0xA1, 0xAB):
                 fil[self.file_tags[T]] = V 
-                if self.dbg:
-                    log(2, '(parse_FCI) parse_security_attribute not implemented '\
+                if self.dbg >= 2:
+                    log(3, '(parse_FCI) parse_security_attribute not implemented '\
                            'for tag 0x%X' % T)
                 self.parse_security_attribute(V, fil)
             # file size or length
