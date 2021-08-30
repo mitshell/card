@@ -186,7 +186,10 @@ class USIM(UICC):
         """
         # initialize like a UICC
         ISO7816.__init__(self, CLA=0x00, reader=reader)
-        self.AID = []
+        self.AID        = []
+        self.AID_GP     = {}
+        self.AID_USIM   = None
+        self.AID_ISIM   = None
         #
         if self.dbg >= 2:
             log(3, '(UICC.__init__) type definition: %s' % type(self))
@@ -195,20 +198,48 @@ class USIM(UICC):
         self.SELECT_ADF_USIM()
     
     def SELECT_ADF_USIM(self):
+        """
+        selects the USIM AID
+        
+        returns True if the USIM AID exists, False otherwise
+        may print an error in case the USIM AID selection fails
+        """
         # USIM selection from AID
-        if self.dbg:
-            log(3, '(USIM.__init__) UICC AID found:')
         self.get_AID()
         for aid in self.AID:
             if  tuple(aid[0:5]) == (0xA0, 0x00, 0x00, 0x00, 0x87) \
             and tuple(aid[5:7]) == (0x10, 0x02) :
                 usim = self.select(addr=aid, type='aid')
                 if usim is None and self.dbg:
-                    log(2, '(USIM.__init__) USIM AID selection failed')
-                if usim is not None:
-                    self.USIM_AID = aid
+                    log(2, '(USIM.SELECT_ADF_USIM) USIM AID selection failed')
+                elif usim is not None:
+                    self.AID_USIM = aid
                     if self.dbg >= 2:
-                        log(3, '(USIM.__init__) USIM AID selection succeeded\n')
+                        log(3, '(USIM.SELECT_ADF_USIM) USIM AID selection succeeded\n')
+                return True
+        return False
+    
+    def SELECT_ADF_ISIM(self):
+        """
+        selects the ISIM AID
+        
+        returns True if the ISIM AID exists, False otherwise
+        may print an error in case the ISIM AID selection fails
+        """
+        # ISIM selection from AID
+        self.get_AID()
+        for aid in self.AID:
+            if  tuple(aid[0:5]) == (0xA0, 0x00, 0x00, 0x00, 0x87) \
+            and tuple(aid[5:7]) == (0x10, 0x04) :
+                isim = self.select(addr=aid, type='aid')
+                if isim is None and self.dbg:
+                    log(2, '(ISIM.SELECT_ADF_ISIM) ISIM AID selection failed')
+                elif isim is not None:
+                    self.AID_ISIM = aid
+                    if self.dbg >= 3:
+                        log(3, '(ISIM.SELECT_ADF_ISIM) ISIM AID selection succeeded\n')
+                return True
+        return False
     
     @staticmethod
     def sw_status(sw1, sw2):
@@ -560,11 +591,11 @@ class USIM(UICC):
         write information on existing DF and file in the output file
         """
         usimfs_entries = USIM_app_FS.keys()
-        self.explore_DF([], self.AID.index(self.USIM_AID)+1, depth)
+        self.explore_DF([], self.AID.index(self.AID_USIM) + 1, depth)
         
         fd = open(filename, 'w')
-        fd.write('\n### AID %s ###\n' % self.USIM_AID)
-        f = self.select_by_aid( self.AID.index(self.USIM_AID)+1 )
+        fd.write('\n### AID %s ###\n' % self.AID_USIM)
+        f = self.select_by_aid( self.AID.index(self.AID_USIM) + 1 )
         write_dict(f, fd)
         fd.write('\n')
         #
