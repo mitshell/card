@@ -6,17 +6,18 @@ setup(
     
     packages=[
         "card"
-        ],
+    ],
     
     # mandatory dependency
     install_requires=[
-      'pyscard'
-        ],
+        'pyscard',
+        'pyserial'
+    ],
     
     # optional dependency
     extras_require={
         'graph': ['pydot', 'graphviz']
-        },
+    },
     
     author="Benoit Michau",
     author_email="michau.benoit@gmail.com",

@@ -177,7 +177,7 @@ class USIM(UICC):
     use self.dbg = 1 or more to print live debugging information
     """
     
-    def __init__(self, reader=''):
+    def __init__(self, reader='', modem_device_path=''):
         """
         initializes like an ISO7816-4 card with CLA=0x00
         and checks available AID (Application ID) read from EF_DIR
@@ -185,7 +185,7 @@ class USIM(UICC):
         initializes on the MF
         """
         # initialize like a UICC
-        ISO7816.__init__(self, CLA=0x00, reader=reader)
+        ISO7816.__init__(self, CLA=0x00, reader=reader, modem_device_path=modem_device_path)
         self.AID        = []
         self.AID_GP     = {}
         self.AID_USIM   = None
