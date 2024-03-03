@@ -42,7 +42,8 @@ from smartcard.Exceptions import CardConnectionException
 from smartcard.util import toHexString
 
 from card.utils import *
-        
+from .modem.modem_card_request import ModemCardRequest
+
 ###########################################################
 # ISO7816 class with attributes and methods as defined 
 # by ISO-7816 part 4 standard for smartcard 
@@ -141,7 +142,7 @@ class ISO7816(object):
         0xAB : 'Security Attribute expanded',
         }
     
-    def __init__(self, CLA=0x00, reader=''):
+    def __init__(self, CLA=0x00, reader='', modem_device_path='', at_client=None):
         """
         connect smartcard and defines class CLA code for communication
         uses "pyscard" library services
@@ -149,11 +150,12 @@ class ISO7816(object):
         creates self.CLA attribute with CLA code
         and self.coms attribute with associated "apdu_stack" instance
         """
+
         cardtype = AnyCardType()
-        if reader:
-            cardrequest = CardRequest(timeout=1, cardType=cardtype, readers=[reader])
+        if modem_device_path or at_client:
+            cardrequest = ModemCardRequest(at_client=at_client, modem_device_path=modem_device_path, timeout=1, cardType=cardtype, readers=[reader])
         else:
-            cardrequest = CardRequest(timeout=1, cardType=cardtype)
+            cardrequest = CardRequest(timeout=1, cardType=cardtype, readers=[reader])
         self.cardservice = cardrequest.waitforcard()
         self.cardservice.connection.connect()
         self.reader = self.cardservice.connection.getReader()
@@ -1784,3 +1786,8 @@ class UICC(ISO7816):
         if hasattr(self, 'AID') and aid_num <= len(self.AID)+1:
             return self.select(self.AID[aid_num-1], 'aid')
 
+    def dispose(self):
+        try:
+            self.cardservice.dispose()
+        except:
+            pass
