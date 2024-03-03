@@ -8,9 +8,16 @@ from .at_command_client import ATCommandClient
 logger = logging.getLogger("modem")
 
 class ModemCardRequest:
-    def __init__(self, modem_device_path, timeout: int = 1, cardType: CardType = AnyCardType, readers: Optional[Iterable[str]] = None) -> None:
+    def __init__(self, at_client: Optional[ATCommandClient] = None, modem_device_path: Optional[str] = None, timeout: int = 1, cardType: CardType = AnyCardType, readers: Optional[Iterable[str]] = None) -> None:
         self._readers = readers or ['']
-        self._client = ATCommandClient(modem_device_path, timeout=float(timeout))
+        if not at_client and not modem_device_path:
+            raise ValueError("Either at_client or modem_device_path shall be configured")
+
+        if modem_device_path:
+            self._client = ATCommandClient(modem_device_path, timeout=float(timeout))
+
+        if at_client:
+            self._client = at_client
 
     @property
     def connection(self) -> Any:

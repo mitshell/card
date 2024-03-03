@@ -142,7 +142,7 @@ class ISO7816(object):
         0xAB : 'Security Attribute expanded',
         }
     
-    def __init__(self, CLA=0x00, reader='', modem_device_path=''):
+    def __init__(self, CLA=0x00, reader='', modem_device_path='', at_client=None):
         """
         connect smartcard and defines class CLA code for communication
         uses "pyscard" library services
@@ -152,8 +152,8 @@ class ISO7816(object):
         """
 
         cardtype = AnyCardType()
-        if modem_device_path:
-            cardrequest = ModemCardRequest(modem_device_path, timeout=1, cardType=cardtype, readers=[reader])
+        if modem_device_path or at_client:
+            cardrequest = ModemCardRequest(at_client=at_client, modem_device_path=modem_device_path, timeout=1, cardType=cardtype, readers=[reader])
         else:
             cardrequest = CardRequest(timeout=1, cardType=cardtype, readers=[reader])
         self.cardservice = cardrequest.waitforcard()

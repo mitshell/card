@@ -100,12 +100,12 @@ class SIM(ISO7816):
     use self.dbg = 1 or more to print live debugging information
     """
     
-    def __init__(self, reader='', modem_device_path=''):
+    def __init__(self, reader='', modem_device_path='', at_client=None):
         """
         initialize like an ISO7816-4 card with CLA=0xA0
         can also be used for USIM working in SIM mode,
         """
-        ISO7816.__init__(self, CLA=0xA0, reader=reader, modem_device_path=modem_device_path)
+        ISO7816.__init__(self, CLA=0xA0, reader=reader, modem_device_path=modem_device_path, at_client=at_client)
         #
         if self.dbg >= 2:
             log(3, '(SIM.__init__) type definition: %s' % type(self))
